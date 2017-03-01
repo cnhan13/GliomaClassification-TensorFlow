@@ -1,0 +1,11 @@
+1. Load .mha file [g.stevo - Stackoverflow]]
+pip install scikit-image
+pip install SimpleITK
+
+import skimage.io as io
+
+path = 'data/test.mha'
+outpath = 'data/test.nii'
+
+img = io.imread(path, plugin='simpleitk')
+io.imsave('outpath', img, plugin='simpleitk')
