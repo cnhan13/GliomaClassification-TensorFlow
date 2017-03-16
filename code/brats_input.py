@@ -18,6 +18,9 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10 # DON'T KNOW YET
 TRAIN_PATH = "/home/nhan/Desktop/x2goshared/BRATS2015/BRATS2015_Training/"
 TEST_PATH = "/home/nhan/Desktop/x2goshared/BRATS2015/Testing/"
 
+def _const1(): return tf.constant([1])
+def _const4(): return tf.constant([4])
+
 def read_brats(filename_queue, label_idx):
   class BRATSRecord(object):
     pass
@@ -31,12 +34,10 @@ def read_brats(filename_queue, label_idx):
   f_name = tf.string_split([f_name_reader], '')
   f_name_uint8 = tf.decode_raw(f_name_reader, tf.uint8)
 
-  if f_name_uint8[label_idx] == 72:
-    print f_name_uint8[label_idx]
-    result.label = tf.constant([1])
-  else:
-    print f_name_uint8[label_idx]
-    result.label = tf.constant([3])
+  _H_72 = tf.constant(72, dtype=tf.uint8)
+  compare_label = tf.equal(f_name_uint8[label_idx], _H_72)
+
+  result.label = tf.cond(compare_label, _const4, _const1)
 
   result.mri = tf.reshape(f_data, [NUM_FILES_PER_ENTRY, MHA_HEIGHT, MHA_WIDTH, MHA_DEPTH])
   return result
