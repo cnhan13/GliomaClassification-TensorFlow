@@ -34,12 +34,11 @@ def train():
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(coord=coord)
     
-    record = mris.eval()
-    print record.shape
+    record = mris[:, 1, :, :, :, :]
+    print record
+    a = record.eval()
+    print a.shape
     print labels.eval()
-    # print f_name
-    # print f_name_str.eval()
-    # print f_label.eval()
 
     print "Done"
     coord.request_stop()

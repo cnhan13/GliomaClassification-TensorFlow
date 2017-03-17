@@ -11,9 +11,10 @@ MRI_DIMS = 3
 MHA_HEIGHT = 155
 MHA_WIDTH = 240
 MHA_DEPTH = 240
+MHA_CHANNEL = 1
 
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 20
-NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10 # DON'T KNOW YET
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 10
+NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 5 # DON'T KNOW YET
 
 TRAIN_PATH = "/home/nhan/Desktop/x2goshared/BRATS2015/BRATS2015_Training/"
 TEST_PATH = "/home/nhan/Desktop/x2goshared/BRATS2015/Testing/"
@@ -39,13 +40,17 @@ def read_brats(filename_queue, label_idx):
 
   result.label = tf.cond(compare_label, _const4, _const1)
 
-  result.mri = tf.reshape(f_data, [NUM_FILES_PER_ENTRY, MHA_HEIGHT, MHA_WIDTH, MHA_DEPTH])
+  result.mri = tf.reshape(f_data, [NUM_FILES_PER_ENTRY,
+                                   MHA_HEIGHT,
+                                   MHA_WIDTH,
+                                   MHA_DEPTH,
+                                   MHA_CHANNEL])
   return result
 
 def generate_mri_and_label_batch(mri, label, min_queue_examples,
                                  batch_size, shuffle):
   # Generate batch
-  num_preprocess_threads = 4
+  num_preprocess_threads = 8
 
   if shuffle:
     mris, label_batch = tf.train.shuffle_batch(
@@ -74,6 +79,8 @@ def inputs(data_dir, label_idx, batch_size):
 
   read_input = read_brats(filename_queue, label_idx)
 
+  casted_mri = tf.cast(read_input.mri, tf.float32)
+
   read_input.label.set_shape([1])
 
   # Ensure random shuffling has good mixing properties.
@@ -84,7 +91,7 @@ def inputs(data_dir, label_idx, batch_size):
          'This will take a few minutes.' % min_queue_examples)
 
   # Generate a batch of 5-mri records and labels by building up a queue of records
-  return generate_mri_and_label_batch(read_input.mri, read_input.label,
+  return generate_mri_and_label_batch(casted_mri, read_input.label,
                                       min_queue_examples, batch_size,
                                       shuffle=False)
 
