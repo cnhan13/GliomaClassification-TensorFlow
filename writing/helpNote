@@ -9,3 +9,12 @@ outpath = 'data/test.nii'
 
 img = io.imread(path, plugin='simpleitk')
 io.imsave('outpath', img, plugin='simpleitk')
+
+2. Rename files in place
+find . -type f -name "*OT*.mha" -execdir mv -v -- {} "ot.mha" \;
+find . -type f -name "*Flair*.mha" -execdir mv -v -- {} "flair.mha" \;
+find . -type f -name "*T2*.mha" -execdir mv -v -- {} "t2.mha" \;
+find . -type f -name "*T1c*.mha" -execdir mv -v -- {} "t1c.mha" \;
+find . -type f -name "*T1*.mha" -execdir mv -v -- {} "t1.mha" \;
+find . -type f -name "*.mha" -execdir mv -v -- {} .. \;
+

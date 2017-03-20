@@ -4,10 +4,14 @@ import brats_input
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_integer('batch_size', 10, """Number of images to process in a batch.""")
+tf.app.flags.DEFINE_integer('batch_size', 20, """Number of images to process in a batch.""")
+# tf.app.flags.DEFINE_string('data_dir',
+#                            '/home/nhan/Desktop/x2goshared/BRATS2015/BRATS2015_Training/trial_in/',
+#                            """Path to the BRATS *.in files.""")
 tf.app.flags.DEFINE_string('data_dir',
-                          '/home/nhan/Desktop/x2goshared/BRATS2015/BRATS2015_Training/trial_in/',
-                          """Path to the BRATS *.in files.""")
+                           '/home/cnhan21/media/disk/_home_nhan_Desktop_x2goshared/BRATS2015/BRATS2015_Training/trial_in/',
+                           """Path to the BRATS *.in files.""")
+#tf.app.flags.DEFINE_string('data_dir', '/home/cnhan21/_home_nhan_Desktop_x2goshared/BRATS2015/BRATS2015_Training/trial_in', """Path to the BRATS *.in files.""")
 
 TOWER_NAME = 'tower'
 
@@ -253,6 +257,13 @@ def inference(mris):
                               padding='SAME',
                               name='pool2_ot')
 
+  # local3
+  with tf.variable_scope('local3') as scope:
+    reshape = tf.stack([tf.reshape(pool2_t1, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool2_t1c, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool2_t2, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool2_fl, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool2_ot, [FLAGS.batch_size, -1])])
 
                               
 def weird_inference(mris):
