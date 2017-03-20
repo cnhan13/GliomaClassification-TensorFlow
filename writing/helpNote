@@ -1,7 +1,13 @@
-1. Load .mha file [g.stevo - Stackoverflow]]
+
+=========== Prerequisites ===========================
+1. scikit-image, SimpleITK
 pip install scikit-image
 pip install SimpleITK
 
+
+
+======== Uncategorized ============================
+1. Load .mha file [g.stevo - Stackoverflow]]
 import skimage.io as io
 
 path = 'data/test.mha'
@@ -10,34 +16,23 @@ outpath = 'data/test.nii'
 img = io.imread(path, plugin='simpleitk')
 io.imsave('outpath', img, plugin='simpleitk')
 
-2. Rename files in place
-find . -type f -name "*OT*.mha" -execdir mv -v -- {} "ot.mha" \;
-find . -type f -name "*Flair*.mha" -execdir mv -v -- {} "flair.mha" \;
-find . -type f -name "*T2*.mha" -execdir mv -v -- {} "t2.mha" \;
-find . -type f -name "*T1c*.mha" -execdir mv -v -- {} "t1c.mha" \;
-find . -type f -name "*T1*.mha" -execdir mv -v -- {} "t1.mha" \;
-find . -type f -name "*.mha" -execdir mv -v -- {} .. \;
 
-find . -type d -name "VSD*" -exec rm -rf {} +
-
-
-3. Add prefix to folders' names and move them
+2. Add prefix to folders' names and move them
 find HGG/ -type d -name "brats*" -printf "mv -v %h/%f %h/../H_%f\n" | bash
 find LGG/ -type d -name "brats*" -printf "mv -v %h/%f %h/../L_%f\n" | bash
 rm -rf HGG LGG
 
 
-4. Make multiple copies of directory (-r) or file
+3. Make multiple copies of directory (-r) or file
 for i in `seq 1 10`; do cp -r t t$i; done
 
-5. Check size of directories
+4. Check size of directories
 du -sh # summary & human readable
 
 
 
-
 ========== Created supplementary scripts ============
-dl/code/_name_preprocess.sh
+1. dl/code/_name_preprocess.sh
   1. rename long filenames to
     ot.mha
     t1.mha
@@ -49,6 +44,18 @@ dl/code/_name_preprocess.sh
   4. prefix each patient's directory with H_ or L_ depending on whether
       parent directory is HGG or LGG. And bring up 1 level
   5. Delete HGG & LGG folders, now empty
+  Code:
+find . -type f -name "*OT*.mha" -execdir mv -v -- {} "ot.mha" \;
+find . -type f -name "*Flair*.mha" -execdir mv -v -- {} "flair.mha" \;
+find . -type f -name "*T2*.mha" -execdir mv -v -- {} "t2.mha" \;
+find . -type f -name "*T1c*.mha" -execdir mv -v -- {} "t1c.mha" \;
+find . -type f -name "*T1*.mha" -execdir mv -v -- {} "t1.mha" \;
+find . -type f -name "*.mha" -execdir mv -v -- {} .. \;
+
+find . -type d -name "VSD*" -exec rm -rf {} +
+
+
+2. 
 
 
 

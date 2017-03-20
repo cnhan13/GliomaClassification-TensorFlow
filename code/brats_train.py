@@ -1,5 +1,9 @@
 import tensorflow as tf
 
+import numpy as np
+import skimage.io as sio
+import SimpleITK as sitk
+
 import brats
 
 FLAGS = tf.app.flags.FLAGS
@@ -44,9 +48,26 @@ def train():
     coord.join(threads)
     sess.close()
 
+def my_reader(directory):
+  filenames = ["/t1.mha", "/t1c.mha", "/t2.mha", "/flair.mha", "/ot.mha"]
+  m = sio.imread(directory + filenames[0], plugin='simpleitk')
+  t = np.array([m])
+  for i in xrange(1,5):
+    p = sio.imread(directory + filenames[i], plugin='simpleitk')
+    t = np.append(t, [p], axis=0)
+  
+  return t 
+
 def train_dev():
-  filenames = tf.train.match_filenames_once(brats.FLAGS.data_dir + "*brats*")
-  filenames_queue = tf.train.string_input_producer(filenames)
+  directories = tf.train.match_filenames_once(brats.FLAGS.data_dir + "*brats*")
+  directories_queue = tf.train.string_input_producer(directories)
+  directory = directories_queue.dequeue()
+
+  t = tf.py_func(my_reader, [directory], tf.int16)
+
+  #mris = tf.constant(t, tf.float32)
+
+  f_name = tf.string_split([directory + "/t1.mha"], ' ')
 
   init_op = tf.global_variables_initializer()
 
@@ -56,10 +77,12 @@ def train_dev():
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(coord=coord)
 
-    #print "filesnames.eval()"
-    #print filenames.eval()
-    print "filenames_queue.eval()"
-    print filenames_queue.eval()
+    print "t"
+    a = t.eval()
+    
+    print a.shape
+    for i in xrange(5):
+      print np.sum(a[i])
 
     coord.request_stop()
     coord.join(threads)
