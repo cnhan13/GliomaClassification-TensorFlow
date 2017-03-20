@@ -32,3 +32,21 @@ for i in `seq 1 10`; do cp -r t t$i; done
 
 5. Check size of directories
 du -sh # summary & human readable
+
+
+
+
+========== Created supplementary scripts ============
+dl/code/_name_preprocess.sh
+  1. rename long filenames to
+    ot.mha
+    t1.mha
+    t1c.mha
+    t2.mha
+    flair.mha
+  2. bring *.mha files upward 1 level
+  3. remove VSD* directories which contained *.mha, now is empty
+  4. prefix each patient's directory with H_ or L_ depending on whether
+      parent directory is HGG or LGG. And bring up 1 level
+  5. Delete HGG & LGG folders, now empty
+
