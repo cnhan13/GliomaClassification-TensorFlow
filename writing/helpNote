@@ -50,3 +50,9 @@ dl/code/_name_preprocess.sh
       parent directory is HGG or LGG. And bring up 1 level
   5. Delete HGG & LGG folders, now empty
 
+
+
+=================== References ======================
+Bash Pitfalls
+http://mywiki.wooledge.org/BashPitfalls#pf1
+
