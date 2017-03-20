@@ -4,14 +4,13 @@ import brats
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('train_dir', './brats_train',
+tf.app.flags.DEFINE_string('train_dir', '~/dl/BRATS2015/brats_train',
                            """Directory where to write event logs"""
                            """and checkpoints.""")
 tf.app.flags.DEFINE_integer('max_steps', 100,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-
 
 
 def train():
@@ -45,8 +44,32 @@ def train():
     coord.join(threads)
     sess.close()
 
+def train_dev():
+  filenames = tf.train.match_filenames_once(brats.FLAGS.data_dir + "*brats*")
+  filenames_queue = tf.train.string_input_producer(filenames)
+
+  init_op = tf.global_variables_initializer()
+
+  with tf.Session() as sess:
+    sess.run(init_op)
+
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(coord=coord)
+
+    #print "filesnames.eval()"
+    #print filenames.eval()
+    print "filenames_queue.eval()"
+    print filenames_queue.eval()
+
+    coord.request_stop()
+    coord.join(threads)
+    sess.close()
+
+  return
+
 def main(argv=None): # pylint: disable=unused-argument
-  train()
+  #train()
+  train_dev()
 
 if __name__ == '__main__':
   tf.app.run()

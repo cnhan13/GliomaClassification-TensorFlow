@@ -96,4 +96,3 @@ def inputs(data_dir, label_idx, batch_size):
                                       shuffle=False)
 
 
-
