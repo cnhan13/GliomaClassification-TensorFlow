@@ -1,16 +1,3 @@
-1. Load .mha file [g.stevo - Stackoverflow]]
-pip install scikit-image
-pip install SimpleITK
-
-import skimage.io as io
-
-path = 'data/test.mha'
-outpath = 'data/test.nii'
-
-img = io.imread(path, plugin='simpleitk')
-io.imsave('outpath', img, plugin='simpleitk')
-
-2. Rename files in place
 find . -type f -name "*OT*.mha" -execdir mv -v -- {} "ot.mha" \;
 find . -type f -name "*Flair*.mha" -execdir mv -v -- {} "flair.mha" \;
 find . -type f -name "*T2*.mha" -execdir mv -v -- {} "t2.mha" \;
@@ -20,12 +7,6 @@ find . -type f -name "*.mha" -execdir mv -v -- {} .. \;
 
 find . -type d -name "VSD*" -exec rm -rf {} +
 
-
-3. Add prefix to folders' names and move them
 find HGG/ -type d -name "brats*" -printf "mv -v %h/%f %h/../H_%f\n" | bash
 find LGG/ -type d -name "brats*" -printf "mv -v %h/%f %h/../L_%f\n" | bash
 rm -rf HGG LGG
-
-
-4. Make multiple copies of directory (-r) or file
-for i in `seq 1 10`; do cp -r t t$i; done
