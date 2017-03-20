@@ -29,3 +29,6 @@ rm -rf HGG LGG
 
 4. Make multiple copies of directory (-r) or file
 for i in `seq 1 10`; do cp -r t t$i; done
+
+5. Check size of directories
+du -sh # summary & human readable
