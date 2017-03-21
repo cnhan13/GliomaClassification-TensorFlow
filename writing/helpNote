@@ -6,7 +6,7 @@ pip install SimpleITK
 
 
 
-======== Uncategorized ============================
+======== New components and their usages ============
 1. Load .mha file [g.stevo - Stackoverflow]]
 import skimage.io as io
 
@@ -29,6 +29,24 @@ for i in `seq 1 10`; do cp -r t t$i; done
 4. Check size of directories
 du -sh # summary & human readable
 
+  **** Tensorflow ****
+  a. conditions
+tf.cond
+[Ref: https://www.tensorflow.org/api_docs/python/tf/cond]
+
+  b. script language operators
+tf.py_func
+[Ref: https://www.tensorflow.org/versions/master/api_docs/python/script_ops/script_language_operators_#py_func]
+
+  c. queue to read 2 files together
+[Ref: http://stackoverflow.com/questions/38827264/how-to-use-tensorflow-reader-and-queue-to-read-two-file-at-same-time]
+
+  d. read mha
+[Ref: https://github.com/tkuanlun350/Tensorflow-SegNet/blob/master/Inputs.py]
+[Ref: https://github.com/tkuanlun350/Tensorflow-SegNet/blob/master/seq_slice.py]
+
+  e. accessing filename from file queue
+[Ref: http://stackoverflow.com/questions/34051205/accessing-filename-from-file-queue-in-tensor-flow]
 
 
 ========== Created supplementary scripts ============
