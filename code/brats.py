@@ -53,10 +53,10 @@ def inputs():
   if not FLAGS.data_dir:
     raise ValueError('Please supply a data_dir')
 
-  mris, labels = brats_input.inputs(data_dir=FLAGS.data_dir,
+  records, labels = brats_input.inputs(data_dir=FLAGS.data_dir,
                                              label_idx=len(FLAGS.data_dir),
                                              batch_size=FLAGS.batch_size)
-  return mris, labels
+  return records, labels
 
 
 def inference(mris):
