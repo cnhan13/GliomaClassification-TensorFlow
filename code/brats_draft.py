@@ -1,10 +1,14 @@
 import numpy as np
 import skimage.io as sio
 
+import os
 from matplotlib import pyplot as plt
 
 ## Simple read mha to nparray, write nparray to file
 ## read array from file, reshape to get nparray
+
+TRAIN_PATH = "/home/cnhan21/Desktop/dl/BRATS2015/BRATS2015_Training/"
+TEST_PATH = "/home/cnhan21/Desktop/dl/BRATS2015/Testing/"
 
 # func1
 def read_mha(filename):
@@ -90,7 +94,7 @@ def generate_binary_input(path, train = True):
           path_file_list_counter += 1
 
     if path_file_list_counter == 5:
-      path_file_list_counter = a
+      path_file_list_counter = 0
       v = read_mha(path_file_list)
       write_array(v, bin_path + bin_name)
     
