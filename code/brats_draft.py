@@ -107,7 +107,7 @@ def try_read():
 
   return
 
-#if __name__ == "__main__":
+if __name__ == "__main__":
   # f = ["VSD.Brain.XX.O.MR_T1.35536.mha", \
   #     "VSD.Brain.XX.O.MR_T1c.35535.mha", \
   #     "VSD.Brain.XX.O.MR_T2.35534.mha", \
@@ -118,5 +118,5 @@ def try_read():
   # write_array(v, f2)
   # t = read_array_from_file(f2)
 
-  # generate_binary_input(TRAIN_PATH)
+  generate_binary_input(TRAIN_PATH)
   # generate_binary_input(TEST_PATH, False)
