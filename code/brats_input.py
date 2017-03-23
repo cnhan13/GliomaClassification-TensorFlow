@@ -69,8 +69,9 @@ def read_brats_dev(directories_queue, label_idx):
   result = BRATSRecord()
   
   directory = directories_queue.dequeue()
+  print directory
 
-  mris = tf.py_func(brats_reader, [directory], tf.int16)[0]
+  mris = tf.py_func(brats_reader, [directory], tf.int16)
   print mris
   
   result.mris = tf.reshape(mris, [NUM_FILES_PER_ENTRY,
@@ -127,6 +128,9 @@ def inputs(data_dir, label_idx, batch_size):
   directories_queue = tf.train.string_input_producer(directories)
 
   read_input = read_brats_dev(directories_queue, label_idx)
+
+  tf.Print(read_input.mris, [read_input.mris], "read_input.mris: ")
+  tf.Print(read_input.label, [read_input.label], "read_input.label: ")
 
   casted_mris = tf.cast(read_input.mris, tf.float32)
 

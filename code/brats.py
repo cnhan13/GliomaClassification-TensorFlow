@@ -4,7 +4,7 @@ import brats_input
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_integer('batch_size', 5, """Number of images to process in a batch.""")
+tf.app.flags.DEFINE_integer('batch_size', 1, """Number of images to process in a batch.""")
 ### nac ###
 # tf.app.flags.DEFINE_string('data_dir',
 #                            '/home/nhan/Desktop/x2goshared/BRATS2015/BRATS2015_Training/trial_in/',

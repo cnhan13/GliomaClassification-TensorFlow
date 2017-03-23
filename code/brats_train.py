@@ -5,6 +5,7 @@ import skimage.io as sio
 import SimpleITK as sitk
 
 import brats
+import brats_input
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -67,6 +68,9 @@ def train_dev():
   directory = directories_queue.dequeue()
 
   t = tf.py_func(my_reader, [directory], tf.int16)
+  a = t[0]
+  print t
+  print a
 
   _H_72 = tf.constant(72, dtype=tf.uint8)
 
@@ -90,16 +94,15 @@ def train_dev():
 
     print "t"
     print t
-    a = t.eval()
+    print t.eval().shape
+    print "a"
+    print a
+    print a.eval().shape
     
-    print a.shape
     for i in xrange(5):
-      print np.sum(a[i])
+      print np.sum([i])
     print "label"
     print label.eval()
-
-    for i in xrange(500):
-      print str(i) + " " + directory.eval()
 
     coord.request_stop()
     coord.join(threads)
@@ -107,9 +110,35 @@ def train_dev():
 
   return
 
+def train_dev2():
+  records, label_batch = brats_input.inputs(brats.FLAGS.data_dir,
+                              len(brats.FLAGS.data_dir),
+                              brats.FLAGS.batch_size)
+  
+  init_op = tf.global_variables_initializer()
+
+  with tf.Session() as sess:
+    sess.run(init_op)
+
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(coord=coord)
+
+    print "records"
+    print records
+    print records.eval()
+
+
+    coord.request_stop()
+    coord.join(threads)
+    sess.close()
+
+  return
+
+
 def main(argv=None): # pylint: disable=unused-argument
-  train()
+  #train()
   #train_dev()
+  train_dev2()
 
 if __name__ == '__main__':
   tf.app.run()
