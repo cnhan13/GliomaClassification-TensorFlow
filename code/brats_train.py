@@ -50,7 +50,8 @@ def train():
 
 
 def main(argv=None): # pylint: disable=unused-argument
-  train()
+  _, _ = brats.get_input_list(1)
+  #train()
 
 if __name__ == '__main__':
   tf.app.run()
