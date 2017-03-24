@@ -1,6 +1,7 @@
 import tensorflow as tf
 import os.path
 import random
+import pickle
 
 import brats_input
 
@@ -14,11 +15,11 @@ tf.app.flags.DEFINE_integer('batch_size', 10, """Number of images to process in 
 
 ### audi ###
 tf.app.flags.DEFINE_string('list_dir',
-                           '/home/cnhan21/media/disk/_home_nhan_Desktop_x2goshared/BRATS2015/BRATS2015_Training/',
+                           '/home/cnhan21/Desktop/dl/BRATS2015/',
                            """Path to 'input list' files.""")
 
 tf.app.flags.DEFINE_string('data_dir',
-                           FLAGS.list_dir + 'in/',
+                           FLAGS.list_dir + 'BRATS2015_Training/',
                            """Path to the BRATS *.in files.""")
 
 ### farmer ###
@@ -57,8 +58,7 @@ def get_input_list(idx):
   train_list_name = FLAGS.list_dir + 'train_list' + str(idx)
   test_list_name = FLAGS.list_dir + 'test_list' + str(idx)
 
-  if tf.gfile.Exists(train_list_name) and 
-      tf.gfile.Exists(test_list_name):
+  if tf.gfile.Exists(train_list_name) and tf.gfile.Exists(test_list_name):
     print "Fetching existed list of files:"
     
     # open created list of 'train files'
@@ -87,10 +87,10 @@ def get_input_list(idx):
     count_high_train = 0
     count_high_test = 0
 
-    for (_, _, filenames) in walk(FLAGS.data_dir):
+    for (_, _, filenames) in os.walk(FLAGS.data_dir):
       for filename in filenames:
         prob_take = random.random()
-        if (filename[0] == 'H' and prob_take < prob_take_high) or
+        if (filename[0] == 'H' and prob_take < prob_take_high) or \
             (filename[0] == 'L' and prob_take < prob_take_low):
           
           train_list.append(filename)
@@ -107,7 +107,7 @@ def get_input_list(idx):
     with open(train_list_name, 'wb') as f:
       pickle.dump(train_list, f)
 
-    print "Total train files: {0} High-Prob: {1}-{2:.2f} Low-Prob: {3}-{4:.2f}"
+    print "Total train files: {0} High-Prob: {1}-{2:.2f} Low-Prob: {3}-{4:.2f}"\
           .format(len(train_list),
                   count_high_train,
                   prob_take_high,
@@ -118,7 +118,7 @@ def get_input_list(idx):
     with open(test_list_name, 'wb') as f:
       pickle.dump(test_list, f)
 
-    print "Total test files: {0} High: {1} Low: {2}"
+    print "Total test files: {0} High: {1} Low: {2}"\
           .format(len(test_list),
                   count_high_test,
                   len(test_list) - count_high_test)
