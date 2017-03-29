@@ -50,7 +50,10 @@ def train():
 
 
 def main(argv=None): # pylint: disable=unused-argument
-  train()
+  for i in xrange(1,10):
+    _, _ = brats.get_input_list(i)
+
+  #train()
 
 if __name__ == '__main__':
   tf.app.run()
