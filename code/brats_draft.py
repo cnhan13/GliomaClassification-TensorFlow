@@ -2,13 +2,16 @@ import numpy as np
 import skimage.io as sio
 
 import os
-from matplotlib import pyplot as plt
 
 ## Simple read mha to nparray, write nparray to file
 ## read array from file, reshape to get nparray
 
-TRAIN_PATH = "/home/cnhan21/Desktop/dl/BRATS2015/BRATS2015_Training/"
-TEST_PATH = "/home/cnhan21/Desktop/dl/BRATS2015/Testing/"
+### audi
+#TRAIN_PATH = "/home/cnhan21/Desktop/dl/BRATS2015/BRATS2015_Training/"
+#TEST_PATH = "/home/cnhan21/Desktop/dl/BRATS2015/Testing/"
+
+### farmer
+TRAIN_PATH = "/home/ubuntu/dl/BRATS2015/BRATS2015_Training"
 
 # func1
 def read_mha(filename):
@@ -40,6 +43,7 @@ def read_array_from_file(full_path_name):
 
 # func4
 def view_slice(v):
+  from matplotlib import pyplot as plt
   plt.imshow(v[101,:,:], cmap='gray')
   plt.show()
   return
