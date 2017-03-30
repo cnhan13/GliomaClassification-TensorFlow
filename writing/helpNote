@@ -81,3 +81,12 @@ find . -type d -name "VSD*" -exec rm -rf {} +
 Bash Pitfalls
 http://mywiki.wooledge.org/BashPitfalls#pf1
 
+Python write and read a list from file
+http://stackoverflow.com/questions/17225287/python-2-7-write-and-read-a-list-from-file
+
+Check whether a file exists using tensorflow tf.gfile
+
+List all files of a directory
+http://stackoverflow.com/questions/3207219/how-to-list-all-files-of-a-directory
+
+
