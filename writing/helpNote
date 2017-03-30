@@ -73,8 +73,8 @@ find . -type f -name "*.mha" -execdir mv -v -- {} .. \;
 find . -type d -name "VSD*" -exec rm -rf {} +
 
 
-2. 
-
+2. ssh
+rsync -avz -e 'ssh -i ~/.aws/farmer-key.pem' HGG/ ubuntu@ec2-54-254-229-156.ap-southeast-1.compute.amazonaws.com:~/dl/BRATS2015/BRATS2015_Training/HGG/
 
 
 =================== References ======================
