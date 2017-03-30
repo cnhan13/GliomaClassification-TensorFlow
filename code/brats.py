@@ -14,18 +14,27 @@ tf.app.flags.DEFINE_integer('batch_size', 10, """Number of images to process in 
 #                            """Path to the BRATS *.in files.""")
 
 ### audi ###
-tf.app.flags.DEFINE_string('list_dir',
-                           '/home/cnhan21/Desktop/dl/BRATS2015/',
-                           """Path to 'input list' files.""")
-
-tf.app.flags.DEFINE_string('data_dir',
-                           FLAGS.list_dir + 'BRATS2015_Training/',
-                           """Path to the BRATS *.in files.""")
+#tf.app.flags.DEFINE_string('list_dir',
+#                           '/home/cnhan21/Desktop/dl/BRATS2015/',
+#                           """Path to 'input list' files.""")
+#
+#tf.app.flags.DEFINE_string('data_dir',
+#                           FLAGS.list_dir + 'BRATS2015_Training/',
+#                           """Path to the BRATS *.in files.""")
 
 ### farmer ###
 #tf.app.flags.DEFINE_string('data_dir',
 #                           '/home/ubuntu/dl/BRATS2015/BRATS2015_Training/',
 #                           """Path to the *brats* directories""")
+
+### audi ###
+tf.app.flags.DEFINE_string('list_dir',
+                           '/home/ubuntu/dl/BRATS2015/',
+                           """Path to 'input list' files.""")
+
+tf.app.flags.DEFINE_string('data_dir',
+                           FLAGS.list_dir + 'BRATS2015_Training/',
+                           """Path to the BRATS *.in files.""")
 
 TOWER_NAME = 'tower'
 
@@ -79,7 +88,11 @@ def get_input_list(idx):
     # Train data info:        221 H, 54 L
     # Train quantity target:  70 H, 45 L
     # Train ratio target:     70/221 H, 45/54 H
-    prob_take_high = 70./221
+    #prob_take_high = 70./221
+    #prob_take_low = 45./54
+
+    # farmer
+    prob_take_high = 70./178
     prob_take_low = 45./54
 
     train_list = []
