@@ -43,6 +43,9 @@ def train():
     print "labels"
     print labels.eval()
 
+    i = 1
+    
+
     print "Done"
     coord.request_stop()
     coord.join(threads)
