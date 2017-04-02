@@ -121,7 +121,7 @@ def generate_binary_input(path, train = True):
     if path_file_list_counter == 5:
       path_file_list_counter = 0
       v = read_mha(path_file_list)
-      #for i in xrange(5):
+      #for i in xrange(4, 5):
       #  t = np.amax(np.amax(v[i], 1), 1)
       #  for j in xrange(lowH+1):
       #    if t[j] != 0:
@@ -154,7 +154,8 @@ def generate_binary_input(path, train = True):
       write_array(v, bin_path + bin_name)
     
       #print [lowH, highH, lowW, highW, lowD, highD]
-      # [0, 148, 36, 220, 40, 201]
+      # whole brain [0, 148, 36, 220, 40, 201]
+      # tumor       [7, 145, 40, 213, 50, 193]
   return
 
 def try_read():
