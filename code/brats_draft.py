@@ -6,20 +6,34 @@ import os
 ## Simple read mha to nparray, write nparray to file
 ## read array from file, reshape to get nparray
 
+### nac
+TRAIN_PATH = "/home/nhan/Desktop/x2goshared/BRATS2015/BRATS2015_Training/"
+
 ### audi
 #TRAIN_PATH = "/home/cnhan21/Desktop/dl/BRATS2015/BRATS2015_Training/"
 #TEST_PATH = "/home/cnhan21/Desktop/dl/BRATS2015/Testing/"
 
 ### farmer
-TRAIN_PATH = "/home/ubuntu/dl/BRATS2015/BRATS2015_Training"
+#TRAIN_PATH = "/home/ubuntu/dl/BRATS2015/BRATS2015_Training"
+
+NUM_FILES_PER_ENTRY = 5
+MHA_HEIGHT = 155
+MHA_WIDTH = 240
+MHA_DEPTH = 240
+
+NEW_HEIGHT = 148 - 0 + 1
+NEW_WIDTH = 220 - 36 + 1
+NEW_DEPTH = 201 - 40 + 1
 
 # func1
 def read_mha(filename):
   #mha_data = io.imread(filename, plugin='simpleitk')
   m = sio.imread(filename[0], plugin='simpleitk')
+  m = m[0:149, 36:221, 40:202]
   t = np.array([m])
   for i in xrange(1,5):
     p = sio.imread(filename[i], plugin='simpleitk')
+    p = p[0:149, 36:221, 40:202]
     t = np.append(t, [p], axis=0)
   return t
 
@@ -51,8 +65,15 @@ def view_slice(v):
 # func5
 def generate_binary_input(path, train = True):
   if not train:
-    print 'generate_binary_input() is not yet implemented for !train data'
+    print 'generate_binary_input() is not yet implemented for not train data'
     return
+  
+  lowH = MHA_HEIGHT-1
+  lowW = MHA_WIDTH-1
+  lowD = MHA_DEPTH-1
+  highH = 0
+  highW = 0
+  highD = 0
 
   bin_path = '' # path of binary input file
   bin_name = '' # name of binary input file
@@ -100,8 +121,40 @@ def generate_binary_input(path, train = True):
     if path_file_list_counter == 5:
       path_file_list_counter = 0
       v = read_mha(path_file_list)
+      #for i in xrange(5):
+      #  t = np.amax(np.amax(v[i], 1), 1)
+      #  for j in xrange(lowH+1):
+      #    if t[j] != 0:
+      #      lowH = j
+      #      break
+      #  for j in xrange(MHA_HEIGHT-1, highH-1, -1):
+      #    if t[j] != 0:
+      #      highH = j
+      #      break
+
+      #  t = np.amax(np.amax(v[i], 0), 1)
+      #  for j in xrange(lowW+1):
+      #    if t[j] != 0:
+      #      lowW = j
+      #      break
+      #  for j in xrange(MHA_WIDTH-1, highW-1, -1):
+      #    if t[j] != 0:
+      #      highW = j
+      #      break
+
+      #  t = np.amax(np.amax(v[i], 0), 0)
+      #  for j in xrange(lowD+1):
+      #    if t[j] != 0:
+      #      lowD = j
+      #      break
+      #  for j in xrange(MHA_DEPTH-1, highD-1, -1):
+      #    if t[j] != 0:
+      #      highD = j
+      #      break
       write_array(v, bin_path + bin_name)
     
+      #print [lowH, highH, lowW, highW, lowD, highD]
+      # [0, 148, 36, 220, 40, 201]
   return
 
 def try_read():
