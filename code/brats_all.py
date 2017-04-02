@@ -6,7 +6,7 @@ import pickle
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_integer('batch_size', 2, """Number of images to process in a batch.""")
+tf.app.flags.DEFINE_integer('batch_size', 3, """Number of images to process in a batch.""")
 
 tf.app.flags.DEFINE_integer('set_quantity', 10, """Number of sets to run.""")
 
@@ -35,6 +35,7 @@ def _const1(): return tf.constant([1])
 def _const4(): return tf.constant([4])
 
 
+
 def read_brats(filename_queue, label_idx):
   class BRATSRecord(object):
     pass
@@ -45,7 +46,6 @@ def read_brats(filename_queue, label_idx):
 
   f_data = tf.decode_raw(f_raw_reader, tf.int16)
 
-  #f_name = tf.string_split([f_name_reader], '')
   f_name_uint8 = tf.decode_raw(f_name_reader, tf.uint8)
 
   _H_72 = tf.constant(72, dtype=tf.uint8)
@@ -64,7 +64,7 @@ def read_brats(filename_queue, label_idx):
 def generate_record_and_label_batch(mris, label, min_queue_examples,
                                  batch_size, shuffle):
   # Generate batch
-  num_preprocess_threads = 8
+  num_preprocess_threads = 4
 
   if shuffle:
     records, label_batch = tf.train.shuffle_batch(
@@ -85,8 +85,13 @@ def generate_record_and_label_batch(mris, label, min_queue_examples,
 
   return records, tf.reshape(label_batch, [batch_size])
 
-def inputs(_list, is_train_list, label_idx, batch_size):
+def inputs(is_train_list, label_idx, batch_size):
+  inputs.set_number += 1
+
   ## Create a queue of filenames to read
+  _list = get_list(FLAGS.data_dir, inputs.set_number, is_train_list)
+  print type(_list)
+
   filename_queue = tf.train.string_input_producer(_list)
 
   read_input = read_brats(filename_queue, label_idx)
@@ -106,6 +111,7 @@ def inputs(_list, is_train_list, label_idx, batch_size):
   return generate_record_and_label_batch(casted_mris, read_input.label,
                                       min_queue_examples, batch_size,
                                       shuffle=False)
+inputs.set_number = 0
 
 def get_list(data_dir, set_number, is_train=True):
   list_name = ""
@@ -123,17 +129,15 @@ def get_list(data_dir, set_number, is_train=True):
   print "List name: " + list_name
   print "Set number: " + str(set_number)
   print "Number of input files: " + str(len(_list))
-  print _list
 
   return _list
 
 
 def proceed():
-  train_list = tf.placeholder(tf.string, shape=[None])
-  test_list = tf.placeholder(tf.string, shape=[None]) # evaluate test data of a set
+  #train_list = tf.placeholder(tf.string, shape=[None])
+  #test_list = tf.placeholder(tf.string, shape=[None]) # evaluate test data of a set
 
-  records, labels = inputs(_list = train_list,
-                            is_train_list=True,
+  records, labels = inputs(is_train_list=True,
                             label_idx=len(FLAGS.data_dir),
                             batch_size=FLAGS.batch_size)
 
@@ -147,24 +151,22 @@ def proceed():
   config = tf.ConfigProto()
   config.operation_timeout_in_ms = 5000
   
-  sess = tf.Session(config=config)
+  sess = tf.Session()
   #sess.run(tf.global_variables_initializer())
 
+  coord = tf.train.Coordinator()
+  threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
   for set_number in xrange(1, FLAGS.set_quantity):
+    print "##### " + str(set_number)
     sess.run(tf.global_variables_initializer())
 
-    coord = tf.train.Coordinator()
-    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-    label_batch = sess.run(labels, 
-                          feed_dict={train_list: get_list(FLAGS.data_dir,
-                                                          set_number,
-                                                          is_train=True)})
-    print label_batch
+    #print(sess.run(labels, feed_dict={train_list: _list}))
+    print(sess.run(labels))
 
-    coord.request_stop()
-    coord.join(threads)
-    coord.clear_stop()
+  coord.request_stop()
+  coord.join(threads)
 
   sess.close()
     
