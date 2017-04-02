@@ -27,9 +27,12 @@ tf.app.flags.DEFINE_string('data_dir',
 # Global constants describing the BRATS data set
 NUM_FILES_PER_ENTRY = 5
 MRI_DIMS = 3
-MHA_HEIGHT = 155
-MHA_WIDTH = 240
-MHA_DEPTH = 240
+#MHA_HEIGHT = 155
+#MHA_WIDTH = 240
+#MHA_DEPTH = 240
+MHA_HEIGHT = 149
+MHA_WIDTH = 185
+MHA_DEPTH = 162
 MHA_CHANNEL = 1
 
 NUM_CLASSES = 2
@@ -164,6 +167,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
 def inference(mris):
   # T1 T1c T2 Flair OT
   # conv1
+  # (batch_size, 5, 149, 185, 162)
   with tf.variable_scope('conv1_t1') as scope:
     kernel_t1 = _variable_with_weight_decay('weights',
                                          shape=[3, 3, 3, 1, 64],
