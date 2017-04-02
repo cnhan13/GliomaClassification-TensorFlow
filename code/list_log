@@ -1,45 +1,45 @@
 Creating new list of files to train:
-Total train files: 115 High-Prob: 70-0.39 Low-Prob: 45-0.83
+Total train files: 124 High-Prob: 73-0.32 Low-Prob: 51-0.83
 File: /home/ubuntu/dl/BRATS2015/train_list1
-Total test files: 117 High: 108 Low: 9
+Total test files: 150 High: 147 Low: 3
 File: /home/ubuntu/dl/BRATS2015/test_list1
 Creating new list of files to train:
-Total train files: 124 High-Prob: 77-0.39 Low-Prob: 47-0.83
+Total train files: 121 High-Prob: 80-0.32 Low-Prob: 41-0.83
 File: /home/ubuntu/dl/BRATS2015/train_list2
-Total test files: 108 High: 101 Low: 7
+Total test files: 153 High: 140 Low: 13
 File: /home/ubuntu/dl/BRATS2015/test_list2
 Creating new list of files to train:
-Total train files: 112 High-Prob: 68-0.39 Low-Prob: 44-0.83
+Total train files: 118 High-Prob: 73-0.32 Low-Prob: 45-0.83
 File: /home/ubuntu/dl/BRATS2015/train_list3
-Total test files: 120 High: 110 Low: 10
+Total test files: 156 High: 147 Low: 9
 File: /home/ubuntu/dl/BRATS2015/test_list3
 Creating new list of files to train:
-Total train files: 124 High-Prob: 75-0.39 Low-Prob: 49-0.83
+Total train files: 124 High-Prob: 77-0.32 Low-Prob: 47-0.83
 File: /home/ubuntu/dl/BRATS2015/train_list4
-Total test files: 108 High: 103 Low: 5
+Total test files: 150 High: 143 Low: 7
 File: /home/ubuntu/dl/BRATS2015/test_list4
 Creating new list of files to train:
-Total train files: 118 High-Prob: 71-0.39 Low-Prob: 47-0.83
+Total train files: 112 High-Prob: 68-0.32 Low-Prob: 44-0.83
 File: /home/ubuntu/dl/BRATS2015/train_list5
-Total test files: 114 High: 107 Low: 7
+Total test files: 162 High: 152 Low: 10
 File: /home/ubuntu/dl/BRATS2015/test_list5
 Creating new list of files to train:
-Total train files: 120 High-Prob: 73-0.39 Low-Prob: 47-0.83
+Total train files: 118 High-Prob: 72-0.32 Low-Prob: 46-0.83
 File: /home/ubuntu/dl/BRATS2015/train_list6
-Total test files: 112 High: 105 Low: 7
+Total test files: 156 High: 148 Low: 8
 File: /home/ubuntu/dl/BRATS2015/test_list6
 Creating new list of files to train:
-Total train files: 112 High-Prob: 71-0.39 Low-Prob: 41-0.83
+Total train files: 122 High-Prob: 79-0.32 Low-Prob: 43-0.83
 File: /home/ubuntu/dl/BRATS2015/train_list7
-Total test files: 120 High: 107 Low: 13
+Total test files: 152 High: 141 Low: 11
 File: /home/ubuntu/dl/BRATS2015/test_list7
 Creating new list of files to train:
-Total train files: 102 High-Prob: 63-0.39 Low-Prob: 39-0.83
+Total train files: 112 High-Prob: 65-0.32 Low-Prob: 47-0.83
 File: /home/ubuntu/dl/BRATS2015/train_list8
-Total test files: 130 High: 115 Low: 15
+Total test files: 162 High: 155 Low: 7
 File: /home/ubuntu/dl/BRATS2015/test_list8
 Creating new list of files to train:
-Total train files: 112 High-Prob: 62-0.39 Low-Prob: 50-0.83
+Total train files: 108 High-Prob: 63-0.32 Low-Prob: 45-0.83
 File: /home/ubuntu/dl/BRATS2015/train_list9
-Total test files: 120 High: 116 Low: 4
+Total test files: 166 High: 157 Low: 9
 File: /home/ubuntu/dl/BRATS2015/test_list9

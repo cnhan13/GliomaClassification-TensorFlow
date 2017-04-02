@@ -7,7 +7,7 @@ import brats_input
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_integer('batch_size', 10, """Number of images to process in a batch.""")
+tf.app.flags.DEFINE_integer('batch_size', 2, """Number of images to process in a batch.""")
 ### nac ###
 # tf.app.flags.DEFINE_string('data_dir',
 #                            '/home/nhan/Desktop/x2goshared/BRATS2015/BRATS2015_Training/trial_in/',
@@ -88,12 +88,12 @@ def get_input_list(idx):
     # Train data info:        221 H, 54 L
     # Train quantity target:  70 H, 45 L
     # Train ratio target:     70/221 H, 45/54 H
-    #prob_take_high = 70./221
-    #prob_take_low = 45./54
+    prob_take_high = 70./221
+    prob_take_low = 45./54
 
     # farmer
-    prob_take_high = 70./178
-    prob_take_low = 45./54
+    #prob_take_high = 70./178
+    #prob_take_low = 45./54
 
     train_list = []
     test_list = []
@@ -140,14 +140,15 @@ def get_input_list(idx):
   return train_list, test_list
 
 
-def inputs():
+def inputs(set_number):
   
   if not FLAGS.data_dir:
     raise ValueError('Please supply a data_dir')
 
   records, labels = brats_input.inputs(data_dir=FLAGS.data_dir,
-                                             label_idx=len(FLAGS.data_dir),
-                                             batch_size=FLAGS.batch_size)
+                                        set_number=set_number,
+                                        label_idx=len(FLAGS.data_dir),
+                                        batch_size=FLAGS.batch_size)
   return records, labels
 
 
