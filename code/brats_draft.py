@@ -7,14 +7,14 @@ import os
 ## read array from file, reshape to get nparray
 
 ### nac
-TRAIN_PATH = "/home/nhan/Desktop/x2goshared/BRATS2015/BRATS2015_Training/"
+#TRAIN_PATH = "/home/nhan/Desktop/x2goshared/BRATS2015/BRATS2015_Training/"
 
 ### audi
 #TRAIN_PATH = "/home/cnhan21/Desktop/dl/BRATS2015/BRATS2015_Training/"
 #TEST_PATH = "/home/cnhan21/Desktop/dl/BRATS2015/Testing/"
 
 ### farmer
-#TRAIN_PATH = "/home/ubuntu/dl/BRATS2015/BRATS2015_Training"
+TRAIN_PATH = "/home/ubuntu/dl/BRATS2015/BRATS2015_Training"
 
 NUM_FILES_PER_ENTRY = 5
 MHA_HEIGHT = 155
