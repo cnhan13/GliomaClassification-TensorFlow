@@ -6,6 +6,7 @@ import pickle
 import re
 import sys
 
+
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_integer('batch_size', 3, """Number of images to process in a batch.""")
@@ -97,7 +98,7 @@ def read_brats(filename_queue, label_idx):
 def generate_record_and_label_batch(mris, label, min_queue_examples,
                                  batch_size, shuffle):
   # Generate batch
-  num_preprocess_threads = 2
+  num_preprocess_threads = 4
 
   if shuffle:
     records, label_batch = tf.train.shuffle_batch(
@@ -116,7 +117,6 @@ def generate_record_and_label_batch(mris, label, min_queue_examples,
   # Display the training mris in the visualizer. HOW?
   # tf.summary.image('images', images)
 
-  #return records, tf.reshape(label_batch, [batch_size])
   return records, tf.reshape(label_batch, [batch_size])
 
 
@@ -189,7 +189,7 @@ def _activation_summary(x):
 def _variable_on_cpu(name, shape, initializer):
   with tf.device('/cpu:0'):
     dtype = tf.float32
-    var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype)
+    var = tf.get_variable(name, shape, initializer=initializer, dtype=tf.float32)
   return var
 
 
@@ -197,7 +197,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
   dtype = tf.float32
   var = _variable_on_cpu(name,
                          shape,
-                         tf.truncated_normal_initializer(stddev=stddev, dtype=dtype))
+                         tf.truncated_normal_initializer(stddev=stddev, dtype=tf.float32))
   if wd is not None:
     weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
     tf.add_to_collection('losses', weight_decay)
@@ -637,12 +637,12 @@ def inference(mris):
 
 def loss(logits, labels):
   # Calculate the average cross entropy loss across the batch
-  logits = deb(logits, "logits")
+  #logits = deb(logits, "logits")
   labels = tf.cast(labels, tf.int64)
-  labels = deb(labels, "labels")
+  #labels = deb(labels, "labels")
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
       labels=labels, logits=logits, name='cross_entropy_per_example')
-  cross_entropy = deb(cross_entropy, "cross entropy")
+  #cross_entropy = deb(cross_entropy, "cross entropy")
   cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
   tf.add_to_collection('losses', cross_entropy_mean)
 
@@ -685,10 +685,10 @@ def train(total_loss, global_step):
   # Compute gradients.
   with tf.control_dependencies([loss_averages_op]):
     opt = tf.train.GradientDescentOptimizer(lr)
-    grads = opt.compute_gradient(total_loss)
+    grads = opt.compute_gradients(total_loss)
 
   # Apply gradients.
-  apply_gradient_op = opt.apply_gradients(grads, global_step=gobal_step)
+  apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 
   # Add histograms for trainable variables.
   for var in tf.trainable_variables():
@@ -711,38 +711,40 @@ def train(total_loss, global_step):
 
 
 def proceed():
-  records, labels = inputs(is_tumor_cropped=False,
-                                         is_train_list=True,
-                                         batch_size=FLAGS.batch_size)
+  with tf.Graph().as_default():
+    global_step = tf.contrib.framework.get_or_create_global_step()
 
-  batch_logits = inference(records)
+    records, labels = inputs(is_tumor_cropped=False,
+                                           is_train_list=True,
+                                           batch_size=FLAGS.batch_size)
 
-  batch_loss = loss(batch_logits, labels)
+    batch_logits = inference(records)
 
-  train_op = train(loss, global_step)
-  
-  # break hanging queue - DEBUGGING only
-  config = tf.ConfigProto()
-  config.operation_timeout_in_ms = FLAGS.operation_timeout_in_ms
-  config.log_device_placement = FLAGS.log_device_placement
-  
-  sess = tf.Session(config=config)
+    batch_loss = loss(batch_logits, labels)
 
-  sess.run(tf.global_variables_initializer())
+    train_op = train(batch_loss, global_step)
+    
+    # break hanging queue - DEBUGGING only
+    config = tf.ConfigProto()
+    config.operation_timeout_in_ms = FLAGS.operation_timeout_in_ms
+    config.log_device_placement = FLAGS.log_device_placement
+    
+    sess = tf.Session(config=config)
 
-  coord = tf.train.Coordinator()
-  threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+    sess.run(tf.global_variables_initializer())
 
-  for step in xrange(FLAGS.max_steps):
-    print "Step: " + str(step)
-    #print(sess.run(labels))
-    #print(sess.run(batch_logits))
-    #print(sess.run(batch_loss))
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-  coord.request_stop()
-  coord.join(threads)
+    for step in xrange(FLAGS.max_steps):
+      print "Step: " + str(step)
+      print(sess.run(train_op))
 
-  sess.close()
+
+    coord.request_stop()
+    coord.join(threads)
+
+    sess.close()
 
 
 def main(argv=None):

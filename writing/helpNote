@@ -97,3 +97,7 @@ http://stackoverflow.com/questions/34293714/can-i-measure-the-execution-time-of-
 
 Use tf.Print
 http://stackoverflow.com/questions/33633370/how-to-print-the-value-of-a-tensor-object-in-tensorflow
+
+Use tf.nn.sparse_softmax_cross_entropy_with_logits():
+Warning: prevent NaN by putting all class label to be [0, NUM_CLASSES)
+https://www.tensorflow.org/api_docs/python/tf/nn/sparse_softmax_cross_entropy_with_logits
