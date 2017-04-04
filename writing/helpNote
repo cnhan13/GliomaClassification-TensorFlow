@@ -89,4 +89,9 @@ Check whether a file exists using tensorflow tf.gfile
 List all files of a directory
 http://stackoverflow.com/questions/3207219/how-to-list-all-files-of-a-directory
 
+CUDA_ERROR_OUT_OF_MEMORY
+http://stackoverflow.com/questions/34514324/error-using-tensorflow-with-gpu
+
+Get time execution for each node in the graph
+http://stackoverflow.com/questions/34293714/can-i-measure-the-execution-time-of-individual-operations-with-tensorflow/37774470#37774470
 

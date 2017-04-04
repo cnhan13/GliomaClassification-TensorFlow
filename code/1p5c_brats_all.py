@@ -7,20 +7,28 @@ import re
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_integer('batch_size', 1, """Number of images to process in a batch.""")
+tf.app.flags.DEFINE_integer('batch_size', 2, """Number of images to process in a batch.""")
 
 tf.app.flags.DEFINE_integer('max_steps', 100, """Number of batches to train.""")
 
 tf.app.flags.DEFINE_integer('set_quantity', 10, """Number of sets to run.""")
 
 ### farmer ###
-tf.app.flags.DEFINE_string('list_dir',
+tf.app.flags.DEFINE_string('common_dir',
                            '/home/ubuntu/dl/BRATS2015/',
                            """Path to 'input list' files.""")
 
-tf.app.flags.DEFINE_string('data_dir',
-                           FLAGS.list_dir + 'BRATS2015_Training/',
-                           """Path to the BRATS *.in files.""")
+tf.app.flags.DEFINE_string('brain_dir',
+                           'brain_cropped/',
+                           """Directory to 'brain cropped' data files.""")
+
+tf.app.flags.DEFINE_string('tumor_dir',
+                           'tumor_cropped/',
+                           """Directory to 'tumor cropped' data files.""")
+
+tf.app.flags.DEFINE_string('in_dir',
+                           'BRATS2015_Training/',
+                           """Directory to *.in records.""")
 
 """ Read BRATS """
 
@@ -71,7 +79,7 @@ def read_brats(filename_queue, label_idx):
 def generate_record_and_label_batch(mris, label, min_queue_examples,
                                  batch_size, shuffle):
   # Generate batch
-  num_preprocess_threads = 8
+  num_preprocess_threads = 4
 
   if shuffle:
     records, label_batch = tf.train.shuffle_batch(
@@ -92,9 +100,10 @@ def generate_record_and_label_batch(mris, label, min_queue_examples,
 
   return records, tf.reshape(label_batch, [batch_size])
 
-def inputs(is_train_list, label_idx, batch_size):
+
+def inputs(is_tumor_cropped, is_train_list, batch_size):
   ## Create a queue of filenames to read
-  _list = get_list(FLAGS.data_dir, inputs.set_number, is_train_list)
+  _list, label_idx = get_list(inputs.set_number, is_tumor_cropped, is_train_list)
 
   filename_queue = tf.train.string_input_producer(_list)
 
@@ -116,24 +125,37 @@ def inputs(is_train_list, label_idx, batch_size):
                                       min_queue_examples, batch_size,
                                       shuffle=False)
 
-def get_list(data_dir, set_number, is_train=True):
-  list_name = ""
-  if is_train:
-    list_name = FLAGS.list_dir + 'train_list' + str(set_number)
-  else:
-    list_name = FLAGS.list_dir + 'test_list' + str(set_number)
 
-  _list = []
+def get_list(set_number, is_tumor_cropped=False, is_train=True):
+  data_dir = FLAGS.common_dir
+
+  if is_tumor_cropped:
+    data_dir += FLAGS.tumor_dir
+  else
+    data_dir += FLAGS.brain_dir
+
+  list_name = data_dir
+
+  if is_train:
+    list_name += 'train_list' + str(set_number)
+  else:
+    list_name += 'test_list' + str(set_number)
+
+  in_dir = data_dir + FLAGS.in_dir
+
   with open(list_name, 'rb') as f:
     _list = pickle.load(f)
 
-  _list = [data_dir + record for record in _list]
+    _list = [in_dir + record for record in _list]
 
-  print "List name: " + list_name
-  print "Set number: " + str(set_number)
-  print "Number of input files: " + str(len(_list))
+    print "List name: " + list_name
+    print "Set number: " + str(set_number)
+    print "Number of input files: " + str(len(_list))
 
-  return _list
+    return _list, len(in_dir)
+  
+  return [], 0
+
 
 """ brats.py """
 
@@ -597,9 +619,9 @@ def inference(mris):
 
 
 def proceed():
-  records, labels = inputs(is_train_list=True,
-                            label_idx=len(FLAGS.data_dir),
-                            batch_size=FLAGS.batch_size)
+  records, labels = inputs(is_tumor_cropped=False,
+                           is_train_list=True,
+                           batch_size=FLAGS.batch_size)
 
   batch_logits = inference(records)
 
@@ -609,7 +631,7 @@ def proceed():
   
   # break hanging queue - DEBUGGING only
   config = tf.ConfigProto()
-  config.operation_timeout_in_ms = 50000
+  config.operation_timeout_in_ms = 60000
   sess = tf.Session(config=config)
 
   sess.run(tf.global_variables_initializer())
@@ -628,9 +650,8 @@ def proceed():
 
 
 def main(argv=None):
-  for set_number in xrange(1, FLAGS.set_quantity):
-    inputs.set_number = set_number
-    proceed()
+  inputs.set_number = sys.argv[1]
+  proceed()
 
 if __name__ == '__main__':
   tf.app.run()
