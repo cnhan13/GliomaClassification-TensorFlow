@@ -14,6 +14,8 @@ tf.app.flags.DEFINE_integer('max_steps', 100, """Number of batches to train.""")
 
 tf.app.flags.DEFINE_integer('set_quantity', 10, """Number of sets to run.""")
 
+
+
 ### farmer ###
 tf.app.flags.DEFINE_string('common_dir',
                            '/home/ubuntu/dl/BRATS2015/',
@@ -46,11 +48,18 @@ MHA_CHANNEL = 1
 
 NUM_CLASSES = 2
 
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 20
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 6
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10 # DON'T KNOW YET
 
+# Contants describing the training process.
+MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
+NUM_EPOCHS_PER_DECAY = 20         # Epochs after which learning rate decays.
+LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor
+INITIAL_LEARNING_RATE = 0.1       # Initial learning rate.
+
+
 def _const1(): return tf.constant([1])
-def _const4(): return tf.constant([4])
+def _const2(): return tf.constant([2])
 
 def read_brats(filename_queue, label_idx):
   class BRATSRecord(object):
@@ -63,11 +72,17 @@ def read_brats(filename_queue, label_idx):
   f_data = tf.decode_raw(f_raw_reader, tf.int16)
 
   f_name_uint8 = tf.decode_raw(f_name_reader, tf.uint8)
+  result.record_name = f_name_uint8[label_idx]
+  result.record_name = tf.Print(result.record_name, [result.record_name], message="Record name: ")
 
   _H_72 = tf.constant(72, dtype=tf.uint8)
-  compare_label = tf.equal(f_name_uint8[label_idx], _H_72)
 
-  result.label = tf.cond(compare_label, _const4, _const1)
+  compare_label = tf.equal(f_name_uint8[label_idx], _H_72)
+  compare_label = tf.Print(compare_label, [compare_label], message="Compare label: ")
+
+  #result.label = tf.cond(compare_label, _const2, _const1)
+  result.label = tf.cond(tf.reshape(compare_label, []), _const2, _const1)
+  result.label = tf.Print(result.label, [result.label], message="Result label: ")
 
   result.mris = tf.reshape(f_data, [NUM_FILES_PER_ENTRY,
                                    MHA_HEIGHT,
@@ -77,21 +92,21 @@ def read_brats(filename_queue, label_idx):
   return result
 
 
-def generate_record_and_label_batch(mris, label, min_queue_examples,
+def generate_record_and_label_batch(mris, label, record_name, min_queue_examples,
                                  batch_size, shuffle):
   # Generate batch
-  num_preprocess_threads = 4
+  num_preprocess_threads = 1
 
   if shuffle:
-    records, label_batch = tf.train.shuffle_batch(
-        [mris, label],
+    records, label_batch, record_names = tf.train.shuffle_batch(
+        [mris, label, record_name],
         batch_size = batch_size,
         num_threads = num_preprocess_threads,
         capacity = min_queue_examples + 3 * batch_size,
         min_after_dequeue = min_queue_examples)
   else:
-    records, label_batch = tf.train.batch(
-        [mris, label],
+    records, label_batch, record_names = tf.train.batch(
+        [mris, label, record_name],
         batch_size = batch_size,
         num_threads = num_preprocess_threads,
         capacity = min_queue_examples + 3 * batch_size)
@@ -99,7 +114,8 @@ def generate_record_and_label_batch(mris, label, min_queue_examples,
   # Display the training mris in the visualizer. HOW?
   # tf.summary.image('images', images)
 
-  return records, tf.reshape(label_batch, [batch_size])
+  #return records, tf.reshape(label_batch, [batch_size])
+  return records, tf.reshape(label_batch, [batch_size]), tf.reshape(record_names, [batch_size])
 
 
 def inputs(is_tumor_cropped, is_train_list, batch_size):
@@ -114,6 +130,9 @@ def inputs(is_tumor_cropped, is_train_list, batch_size):
 
   read_input.label.set_shape([1])
 
+  read_input.record_name.set_shape([])
+  print read_input.record_name
+
   # Ensure random shuffling has good mixing properties.
   min_fraction_of_examples_in_queue = 0.2
   min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN *
@@ -122,9 +141,9 @@ def inputs(is_tumor_cropped, is_train_list, batch_size):
          'This will take a few minutes.' % min_queue_examples)
 
   # Generate a batch of 5-mri records and labels by building up a queue of records
-  return generate_record_and_label_batch(casted_mris, read_input.label,
-                                      min_queue_examples, batch_size,
-                                      shuffle=False)
+  return generate_record_and_label_batch(casted_mris, read_input.label, read_input.record_name,
+                                         min_queue_examples, batch_size,
+                                         shuffle=False)
 
 
 def get_list(set_number, is_tumor_cropped=False, is_train=True):
@@ -161,7 +180,6 @@ def get_list(set_number, is_tumor_cropped=False, is_train=True):
 """ brats.py """
 
 TOWER_NAME = 'tower'
-
 
 def _activation_summary(x):
   tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', x.op.name)
@@ -547,84 +565,155 @@ def inference(mris):
 
   print conv4_ot
 
-  # pool3
-  pool3_t1 = tf.nn.max_pool3d(conv4_t1,
+  # pool4
+  pool4_t1 = tf.nn.max_pool3d(conv4_t1,
                               ksize=[1, 3, 3, 3, 1],
                               strides=[1, 2, 2, 2, 1],
                               padding='SAME',
-                              name='pool3_t1')
+                              name='pool4_t1')
   
-  pool3_t1c = tf.nn.max_pool3d(conv4_t1c,
+  pool4_t1c = tf.nn.max_pool3d(conv4_t1c,
                               ksize=[1, 3, 3, 3, 1],
                               strides=[1, 2, 2, 2, 1],
                               padding='SAME',
-                              name='pool3_t1c')
+                              name='pool4_t1c')
 
-  pool3_t2 = tf.nn.max_pool3d(conv4_t2,
+  pool4_t2 = tf.nn.max_pool3d(conv4_t2,
                               ksize=[1, 3, 3, 3, 1],
                               strides=[1, 2, 2, 2, 1],
                               padding='SAME',
-                              name='pool3_t2')
+                              name='pool4_t2')
 
-  pool3_fl = tf.nn.max_pool3d(conv4_fl,
+  pool4_fl = tf.nn.max_pool3d(conv4_fl,
                               ksize=[1, 3, 3, 3, 1],
                               strides=[1, 2, 2, 2, 1],
                               padding='SAME',
-                              name='pool3_fl')
+                              name='pool4_fl')
 
-  pool3_ot = tf.nn.max_pool3d(conv4_ot,
+  pool4_ot = tf.nn.max_pool3d(conv4_ot,
                               ksize=[1, 3, 3, 3, 1],
                               strides=[1, 2, 2, 2, 1],
                               padding='SAME',
-                              name='pool3_ot')
-  print pool3_ot
+                              name='pool4_ot')
+  print pool4_ot
 
-  # local3
-  with tf.variable_scope('local3') as scope:
-    reshape = tf.concat([tf.reshape(pool3_t1, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool3_t1c, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool3_t2, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool3_fl, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool3_ot, [FLAGS.batch_size, -1])],
+  # local5
+  with tf.variable_scope('local5') as scope:
+    reshape = tf.concat([tf.reshape(pool4_t1, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool4_t1c, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool4_t2, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool4_fl, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool4_ot, [FLAGS.batch_size, -1])],
                         axis=1)
     print reshape
     dim = reshape.get_shape()[1].value
     weights = _variable_with_weight_decay('weights', shape=[dim, 384],
                                           stddev=0.04, wd=0.004)
     biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
-    local3 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
-    _activation_summary(local3)
-
-  print local3
-
-  # local4
-  with tf.variable_scope('local4') as scope:
-    weights = _variable_with_weight_decay('weights', shape=[384, 192],
-                                          stddev=0.04, wd=0.004)
-    biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
-    local4 = tf.nn.relu(tf.matmul(local3, weights) + biases, name=scope.name)
-    _activation_summary(local4)
-
-  print local4
-
-  with tf.variable_scope('local5') as scope:
-    weights = _variable_with_weight_decay('weights', shape=[192, NUM_CLASSES],
-                                          stddev=1/192.0, wd=0.0)
-    biases = _variable_on_cpu('biases', [NUM_CLASSES], tf.constant_initializer(0.0))
-    local5 = tf.nn.relu(tf.matmul(local4, weights) + biases, name=scope.name)
+    local5 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
     _activation_summary(local5)
 
   print local5
 
-  return local5
+  # local6
+  with tf.variable_scope('local6') as scope:
+    weights = _variable_with_weight_decay('weights', shape=[384, 192],
+                                          stddev=0.04, wd=0.004)
+    biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
+    local6 = tf.nn.relu(tf.matmul(local5, weights) + biases, name=scope.name)
+    _activation_summary(local6)
+
+  print local6
+
+  with tf.variable_scope('local7') as scope:
+    weights = _variable_with_weight_decay('weights', shape=[192, NUM_CLASSES],
+                                          stddev=1/192.0, wd=0.0)
+    biases = _variable_on_cpu('biases', [NUM_CLASSES], tf.constant_initializer(0.0))
+    local7 = tf.nn.relu(tf.matmul(local6, weights) + biases, name=scope.name)
+    _activation_summary(local7)
+
+  print local7
+
+  return local7
+
+def loss(logits, labels):
+  # Calculate the average cross entropy loss across the batch
+  labels = tf.cast(labels, tf.int64)
+  cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+      labels=labels, logits=logits, name='cross_entropy_per_example')
+  cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
+  tf.add_to_collection('losses', cross_entropy_mean)
+
+  # The total loss is defined as the cross entropy loss + all weight decay terms (L2 loss)
+  return tf.add_n(tf.get_collection('losses'), name='total_loss')
+
+
+def _add_loss_summaries(total_loss):
+  # Compute the moving average of all individual losses and the total loss.
+  loss_averages = tf.train.ExponentialMovingAverage(0.9, name='avg')
+  losses = tf.get_collection('losses')
+  loss_averages_op = loss_averages.apply(losses + [total_loss])
+
+  # Attach scalar summary
+  for l in losses + [total_loss]:
+    # Each loss is named '(raw)'
+    # The moving average loss is named with the original loss name
+    tf.summary.scalar(l.op.name + ' (raw)', l)
+    tf.summary.scalar(l.op.name, loss_averages.average(l))
+
+  return loss_averages_op
+
+
+def train(total_loss, global_step):
+  # Variables that affect the learning rate
+  num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size
+  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
+
+  # Decay the learning rate exponentially based on the number of steps
+  lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
+                                  global_step,
+                                  decay_steps,
+                                  LEARNING_RATE_DECAY_FACTOR,
+                                  staircase=True)
+  tf.summary.scalar('learning_rate', lr)
+
+  # Generate moving averages of all losses and associated summaries.
+  loss_averages_op = _add_loss_summaries(total_loss)
+
+  # Compute gradients.
+  with tf.control_dependencies([loss_averages_op]):
+    opt = tf.train.GradientDescentOptimizer(lr)
+    grads = opt.compute_gradient(total_loss)
+
+  # Apply gradients.
+  apply_gradient_op = opt.apply_gradients(grads, global_step=gobal_step)
+
+  # Add histograms for trainable variables.
+  for var in tf.trainable_variables():
+    tf.summary.histogram(var.op.name, var)
+
+  # Add histograms for gradients.
+  for grad, var in grads:
+    if grad is not None:
+      tf.summary.histogram(var.op.name + '/gradients', grad)
+
+  # Track the moving averages of all trainable variables.
+  variable_averages = tf.train.ExponentialMovingAverage(
+      MOVING_AVERAGE_DECAY, global_step)
+  variables_averages_op = variable_averages.apply(tf.trainable_variables())
+
+  with tf.control_dependencies([apply_gradient_op, variables_averages_op]):
+    train_op = tf.no_op(name='train')
+
+  return train_op
 
 
 def proceed():
-  records, labels = inputs(is_tumor_cropped=False,
-                           is_train_list=True,
-                           batch_size=FLAGS.batch_size)
+  records, labels, record_names = inputs(is_tumor_cropped=False,
+                                         is_train_list=True,
+                                         batch_size=FLAGS.batch_size)
 
-  batch_logits = inference(records)
+  #batch_logits = inference(records)
 
   #batch_loss = loss(batch_logits, labels)
 
@@ -642,7 +731,10 @@ def proceed():
 
   for step in xrange(FLAGS.max_steps):
     print "Step: " + str(step)
-    print(sess.run(batch_logits))
+    print(sess.run(labels))
+    print(sess.run(record_names))
+    #print(sess.run(batch_logits))
+    #print(sess.run(batch_loss))
 
   coord.request_stop()
   coord.join(threads)

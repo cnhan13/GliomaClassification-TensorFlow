@@ -95,3 +95,5 @@ http://stackoverflow.com/questions/34514324/error-using-tensorflow-with-gpu
 Get time execution for each node in the graph
 http://stackoverflow.com/questions/34293714/can-i-measure-the-execution-time-of-individual-operations-with-tensorflow/37774470#37774470
 
+Use tf.Print
+http://stackoverflow.com/questions/33633370/how-to-print-the-value-of-a-tensor-object-in-tensorflow
