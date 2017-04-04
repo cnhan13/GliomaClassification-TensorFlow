@@ -72,17 +72,12 @@ def read_brats(filename_queue, label_idx):
   f_data = tf.decode_raw(f_raw_reader, tf.int16)
 
   f_name_uint8 = tf.decode_raw(f_name_reader, tf.uint8)
-  result.record_name = f_name_uint8[label_idx]
-  result.record_name = tf.Print(result.record_name, [result.record_name], message="Record name: ")
 
   _H_72 = tf.constant(72, dtype=tf.uint8)
 
   compare_label = tf.equal(f_name_uint8[label_idx], _H_72)
-  compare_label = tf.Print(compare_label, [compare_label], message="Compare label: ")
 
-  #result.label = tf.cond(compare_label, _const2, _const1)
   result.label = tf.cond(tf.reshape(compare_label, []), _const2, _const1)
-  result.label = tf.Print(result.label, [result.label], message="Result label: ")
 
   result.mris = tf.reshape(f_data, [NUM_FILES_PER_ENTRY,
                                    MHA_HEIGHT,
@@ -92,21 +87,21 @@ def read_brats(filename_queue, label_idx):
   return result
 
 
-def generate_record_and_label_batch(mris, label, record_name, min_queue_examples,
+def generate_record_and_label_batch(mris, label, min_queue_examples,
                                  batch_size, shuffle):
   # Generate batch
   num_preprocess_threads = 1
 
   if shuffle:
-    records, label_batch, record_names = tf.train.shuffle_batch(
-        [mris, label, record_name],
+    records, label_batch = tf.train.shuffle_batch(
+        [mris, label],
         batch_size = batch_size,
         num_threads = num_preprocess_threads,
         capacity = min_queue_examples + 3 * batch_size,
         min_after_dequeue = min_queue_examples)
   else:
-    records, label_batch, record_names = tf.train.batch(
-        [mris, label, record_name],
+    records, label_batch = tf.train.batch(
+        [mris, label],
         batch_size = batch_size,
         num_threads = num_preprocess_threads,
         capacity = min_queue_examples + 3 * batch_size)
@@ -115,7 +110,7 @@ def generate_record_and_label_batch(mris, label, record_name, min_queue_examples
   # tf.summary.image('images', images)
 
   #return records, tf.reshape(label_batch, [batch_size])
-  return records, tf.reshape(label_batch, [batch_size]), tf.reshape(record_names, [batch_size])
+  return records, tf.reshape(label_batch, [batch_size])
 
 
 def inputs(is_tumor_cropped, is_train_list, batch_size):
@@ -130,9 +125,6 @@ def inputs(is_tumor_cropped, is_train_list, batch_size):
 
   read_input.label.set_shape([1])
 
-  read_input.record_name.set_shape([])
-  print read_input.record_name
-
   # Ensure random shuffling has good mixing properties.
   min_fraction_of_examples_in_queue = 0.2
   min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN *
@@ -141,7 +133,7 @@ def inputs(is_tumor_cropped, is_train_list, batch_size):
          'This will take a few minutes.' % min_queue_examples)
 
   # Generate a batch of 5-mri records and labels by building up a queue of records
-  return generate_record_and_label_batch(casted_mris, read_input.label, read_input.record_name,
+  return generate_record_and_label_batch(casted_mris, read_input.label,
                                          min_queue_examples, batch_size,
                                          shuffle=False)
 
@@ -709,19 +701,20 @@ def train(total_loss, global_step):
 
 
 def proceed():
-  records, labels, record_names = inputs(is_tumor_cropped=False,
+  records, labels = inputs(is_tumor_cropped=False,
                                          is_train_list=True,
                                          batch_size=FLAGS.batch_size)
 
-  #batch_logits = inference(records)
+  batch_logits = inference(records)
 
-  #batch_loss = loss(batch_logits, labels)
+  batch_loss = loss(batch_logits, labels)
 
   #train_op = train(loss, global_step)
   
   # break hanging queue - DEBUGGING only
   config = tf.ConfigProto()
   config.operation_timeout_in_ms = 60000
+  config.log_device_placement=True
   sess = tf.Session(config=config)
 
   sess.run(tf.global_variables_initializer())
@@ -731,10 +724,9 @@ def proceed():
 
   for step in xrange(FLAGS.max_steps):
     print "Step: " + str(step)
-    print(sess.run(labels))
-    print(sess.run(record_names))
+    #print(sess.run(labels))
     #print(sess.run(batch_logits))
-    #print(sess.run(batch_loss))
+    print(sess.run(batch_loss))
 
   coord.request_stop()
   coord.join(threads)
