@@ -22,8 +22,25 @@ tf.app.flags.DEFINE_integer('operation_timeout_in_ms', 60000,
                             """Time to wait for queue to load data.""")
 
 ### farmer ###
+#tf.app.flags.DEFINE_string('common_dir',
+#                           '/home/ubuntu/dl/BRATS2015/',
+#                           """Path to 'input list' files.""")
+#
+#tf.app.flags.DEFINE_string('brain_dir',
+#                           'brain_cropped/',
+#                           """Directory to 'brain cropped' data files.""")
+#
+#tf.app.flags.DEFINE_string('tumor_dir',
+#                           'tumor_cropped/',
+#                           """Directory to 'tumor cropped' data files.""")
+#
+#tf.app.flags.DEFINE_string('in_dir',
+#                           'BRATS2015_Training/',
+#                           """Directory to *.in records.""")
+
+### audi ###
 tf.app.flags.DEFINE_string('common_dir',
-                           '/home/ubuntu/dl/BRATS2015/',
+                           '/home/cnhan21/dl/BRATS2015/',
                            """Path to 'input list' files.""")
 
 tf.app.flags.DEFINE_string('brain_dir',
@@ -37,7 +54,6 @@ tf.app.flags.DEFINE_string('tumor_dir',
 tf.app.flags.DEFINE_string('in_dir',
                            'BRATS2015_Training/',
                            """Directory to *.in records.""")
-
 """ Read BRATS """
 
 # Global constants describing the BRATS data set
@@ -598,6 +614,13 @@ def inference(mris):
 
   # local5
   with tf.variable_scope('local5') as scope:
+    """
+    TensorFlow r12.1:
+    tf.concat(concat_dim, values, name='concat')
+    
+    TensorFlow r1.0
+    tf.concat(values, axis, name='concat')
+    """
     reshape = tf.concat([tf.reshape(pool4_t1, [FLAGS.batch_size, -1]),
                         tf.reshape(pool4_t1c, [FLAGS.batch_size, -1]),
                         tf.reshape(pool4_t2, [FLAGS.batch_size, -1]),
@@ -717,10 +740,12 @@ def proceed():
     records, labels = inputs(is_tumor_cropped=False,
                                            is_train_list=True,
                                            batch_size=FLAGS.batch_size)
-
+    
     batch_logits = inference(records)
 
     batch_loss = loss(batch_logits, labels)
+
+    batch_loss = deb(batch_loss, "batch loss: ")
 
     train_op = train(batch_loss, global_step)
     
