@@ -6,6 +6,9 @@ import pickle
 import re
 import sys
 
+from datetime import datetime
+import time
+
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -17,6 +20,9 @@ tf.app.flags.DEFINE_integer('set_quantity', 10, """Number of sets to run.""")
 
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
+
+tf.app.flags.DEFINE_integer('log_frequency', 10,
+                           """How often to log results to the console.""")
 
 tf.app.flags.DEFINE_integer('operation_timeout_in_ms', 60000,
                             """Time to wait for queue to load data.""")
@@ -54,6 +60,12 @@ tf.app.flags.DEFINE_string('tumor_dir',
 tf.app.flags.DEFINE_string('in_dir',
                            'BRATS2015_Training/',
                            """Directory to *.in records.""")
+
+tf.app.flags.DEFINE_string('train_dir',
+                           'train',
+                           """Directory where to write event logs """
+                           """and checkpoint.""")
+
 """ Read BRATS """
 
 # Global constants describing the BRATS data set
@@ -138,7 +150,7 @@ def generate_record_and_label_batch(mris, label, min_queue_examples,
 
 def inputs(is_tumor_cropped, is_train_list, batch_size):
   ## Create a queue of filenames to read
-  _list, label_idx = get_list(inputs.set_number, is_tumor_cropped, is_train_list)
+  _list, label_idx = get_list(is_tumor_cropped, is_train_list)
 
   filename_queue = tf.train.string_input_producer(_list)
 
@@ -161,20 +173,17 @@ def inputs(is_tumor_cropped, is_train_list, batch_size):
                                          shuffle=False)
 
 
-def get_list(set_number, is_tumor_cropped=False, is_train=True):
-  data_dir = FLAGS.common_dir
+def get_list(is_tumor_cropped=False, is_train=True):
 
-  if is_tumor_cropped:
-    data_dir += FLAGS.tumor_dir
-  else:
-    data_dir += FLAGS.brain_dir
+  data_dir = FLAGS.common_dir
+  data_dir += FLAGS.tumor_dir if is_tumor_cropped else FLAGS.brain_dir
 
   list_name = data_dir
 
   if is_train:
-    list_name += 'train_list' + str(set_number)
+    list_name += 'train_list' + str(inputs.set_number)
   else:
-    list_name += 'test_list' + str(set_number)
+    list_name += 'test_list' + str(inputs.set_number)
 
   in_dir = data_dir + FLAGS.in_dir
 
@@ -184,7 +193,7 @@ def get_list(set_number, is_tumor_cropped=False, is_train=True):
     _list = [in_dir + record for record in _list]
 
     print "List name: " + list_name
-    print "Set number: " + str(set_number)
+    print "Set number: " + str(inputs.set_number)
     print "Number of input files: " + str(len(_list))
 
     return _list, len(in_dir)
@@ -733,13 +742,13 @@ def train(total_loss, global_step):
   return train_op
 
 
-def proceed():
+def proceed(is_tumor_cropped=False):
   with tf.Graph().as_default():
     global_step = tf.contrib.framework.get_or_create_global_step()
 
-    records, labels = inputs(is_tumor_cropped=False,
-                                           is_train_list=True,
-                                           batch_size=FLAGS.batch_size)
+    records, labels = inputs(is_tumor_cropped=is_tumor_cropped,
+                             is_train_list=True,
+                             batch_size=FLAGS.batch_size)
     
     batch_logits = inference(records)
 
@@ -749,32 +758,86 @@ def proceed():
 
     train_op = train(batch_loss, global_step)
     
-    # break hanging queue - DEBUGGING only
-    config = tf.ConfigProto()
-    config.operation_timeout_in_ms = FLAGS.operation_timeout_in_ms
-    config.log_device_placement = FLAGS.log_device_placement
-    
-    sess = tf.Session(config=config)
+    ### Break hanging queue - DEBUGGING only
+    # config = tf.ConfigProto()
+    # config.operation_timeout_in_ms = FLAGS.operation_timeout_in_ms
+    # config.log_device_placement = FLAGS.log_device_placement
+    # 
+    # sess = tf.Session(config=config)
 
-    sess.run(tf.global_variables_initializer())
+    # sess.run(tf.global_variables_initializer())
 
-    coord = tf.train.Coordinator()
-    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+    # coord = tf.train.Coordinator()
+    # threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-    for step in xrange(FLAGS.max_steps):
-      print "Step: " + str(step)
-      print(sess.run(train_op))
+    # for step in xrange(FLAGS.max_steps):
+    #   print "Step: " + str(step)
+    #   print(sess.run(train_op))
 
+    # coord.request_stop()
+    # coord.join(threads)
 
-    coord.request_stop()
-    coord.join(threads)
+    # sess.close()
 
-    sess.close()
+    class _LoggerHook(tf.train.SessionRunHook):
+      """Logs loss and runtime."""
+
+      def begin(self):
+        self._step = -1
+        self._start_time = time.time()
+
+      def before_run(self, run_context):
+        self._step += 1
+        return tf.train.SessionRunArgs(batch_loss)  # Asks for loss value.
+
+      def after_run(self, run_context, run_values):
+        if self._step % FLAGS.log_frequency == 0:
+          current_time = time.time()
+          duration = current_time - self._start_time
+          self._start_time = current_time
+
+          loss_value = run_values.results
+          examples_per_sec = FLAGS.log_frequency * FLAGS.batch_size / duration
+          sec_per_batch = float(duration / FLAGS.log_frequency)
+
+          format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
+                        'sec/batch)')
+          print (format_str % (datetime.now(), self._step, loss_value,
+                               examples_per_sec, sec_per_batch))
+
+    with tf.train.MonitoredTrainingSession(
+        checkpoint_dir=proceed.train_dir,
+        hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
+               tf.train.NanTensorHook(batch_loss),
+               _LoggerHook()],
+        config=tf.ConfigProto(
+          log_device_placement=FLAGS.log_device_placement)) as ma_sess: # my in French, seance
+      while not ma_sess.should_stop():
+        ma_sess.run(train_op)
+
 
 
 def main(argv=None):
+  """
+    Terminal parameters
+    sys.argv[1]: set_number to load as train_list + str(set_number)
+    sys.argv[2]:
+      0: is_tumor_crop = False
+      1: is_tumor_crop = True
+  """
+
   inputs.set_number = sys.argv[1]
-  proceed()
+  is_tumor_cropped = (sys.argv[2] == 0)
+  proceed.train_dir = FLAGS.common_dir
+  proceed.train_dir += FLAGS.tumor_dir if is_tumor_cropped else FLAGS.brain_dir
+  proceed.train_dir += FLAGS.train_dir + inputs.set_number
+
+  if tf.gfile.Exists(proceed.train_dir):
+    tf.gfile.DeleteRecursively(proceed.train_dir)
+  tf.gfile.MakeDirs(proceed.train_dir)
+
+  proceed(is_tumor_cropped=is_tumor_cropped)
+  
 
 if __name__ == '__main__':
   tf.app.run()
