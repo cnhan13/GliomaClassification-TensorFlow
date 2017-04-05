@@ -63,10 +63,10 @@ def train():
 
 
 def main(argv=None): # pylint: disable=unused-argument
-  #for i in xrange(1,10):
-  #  _, _ = brats.get_input_list(i)
+  for i in xrange(15,16):
+    _, _ = brats.get_input_list(i)
 
-  train()
+  #train()
 
 if __name__ == '__main__':
   tf.app.run()

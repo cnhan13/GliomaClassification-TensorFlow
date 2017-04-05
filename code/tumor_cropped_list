@@ -1,0 +1,45 @@
+Creating new list of files to train:
+Total train files: 113 High-Prob: 70-0.32 Low-Prob: 43-0.83
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/train_list1
+Total test files: 161 High: 150 Low: 11
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/test_list1
+Creating new list of files to train:
+Total train files: 106 High-Prob: 67-0.32 Low-Prob: 39-0.83
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/train_list2
+Total test files: 168 High: 153 Low: 15
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/test_list2
+Creating new list of files to train:
+Total train files: 115 High-Prob: 64-0.32 Low-Prob: 51-0.83
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/train_list3
+Total test files: 159 High: 156 Low: 3
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/test_list3
+Creating new list of files to train:
+Total train files: 127 High-Prob: 80-0.32 Low-Prob: 47-0.83
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/train_list4
+Total test files: 147 High: 140 Low: 7
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/test_list4
+Creating new list of files to train:
+Total train files: 101 High-Prob: 56-0.32 Low-Prob: 45-0.83
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/train_list5
+Total test files: 173 High: 164 Low: 9
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/test_list5
+Creating new list of files to train:
+Total train files: 100 High-Prob: 57-0.32 Low-Prob: 43-0.83
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/train_list6
+Total test files: 174 High: 163 Low: 11
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/test_list6
+Creating new list of files to train:
+Total train files: 121 High-Prob: 75-0.32 Low-Prob: 46-0.83
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/train_list7
+Total test files: 153 High: 145 Low: 8
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/test_list7
+Creating new list of files to train:
+Total train files: 118 High-Prob: 71-0.32 Low-Prob: 47-0.83
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/train_list8
+Total test files: 156 High: 149 Low: 7
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/test_list8
+Creating new list of files to train:
+Total train files: 120 High-Prob: 79-0.32 Low-Prob: 41-0.83
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/train_list9
+Total test files: 154 High: 141 Low: 13
+File: /home/cnhan21/dl/BRATS2015/tumor_cropped/test_list9

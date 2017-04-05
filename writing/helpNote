@@ -89,6 +89,7 @@ Check whether a file exists using tensorflow tf.gfile
 List all files of a directory
 http://stackoverflow.com/questions/3207219/how-to-list-all-files-of-a-directory
 
+==================== TensorFlow =====================
 Link gcc to gcc-4.9 to build tensorflow
 http://askubuntu.com/questions/26498/choose-gcc-and-g-version
 http://askubuntu.com/questions/428198/getting-installing-gcc-g-4-9-on-ubuntu
@@ -141,4 +142,16 @@ when running sudo make in
 >>> WARNING - glu.h not found, refer to CUDA Getting Started Guide for how to find and install them. <<<
 >>> WARNING - Xlib.h not found, refer to CUDA Getting Started Guide for how to find and install them. <<<
 
+=======
+CUDA_ERROR_OUT_OF_MEMORY
+http://stackoverflow.com/questions/34514324/error-using-tensorflow-with-gpu
 
+Get time execution for each node in the graph
+http://stackoverflow.com/questions/34293714/can-i-measure-the-execution-time-of-individual-operations-with-tensorflow/37774470#37774470
+
+Use tf.Print
+http://stackoverflow.com/questions/33633370/how-to-print-the-value-of-a-tensor-object-in-tensorflow
+
+Use tf.nn.sparse_softmax_cross_entropy_with_logits():
+Warning: prevent NaN by putting all class label to be [0, NUM_CLASSES)
+https://www.tensorflow.org/api_docs/python/tf/nn/sparse_softmax_cross_entropy_with_logits
