@@ -88,7 +88,7 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10 # DON'T KNOW YET
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
 NUM_EPOCHS_PER_DECAY = 20         # Epochs after which learning rate decays.
 LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor
-INITIAL_LEARNING_RATE = 1e-4       # Initial learning rate.
+INITIAL_LEARNING_RATE = 1e-2       # Initial learning rate.
 DROPOUT = 0.75
 
 def deb(tensor, msg):
@@ -710,6 +710,7 @@ def inference(mris):
     biases = _variable_on_cpu('biases', [NUM_CLASSES], tf.constant_initializer(0.0))
     local7 = tf.nn.relu(tf.matmul(local6, weights) + biases, name=scope.name)
     local7 = tf.nn.dropout(local7, DROPOUT)
+    local7 = deb(local7, "local7: ")
     _activation_summary(local7)
     
   print local7
@@ -762,7 +763,10 @@ def train(total_loss, global_step):
 
   # Compute gradients.
   with tf.control_dependencies([loss_averages_op]):
-    opt = tf.train.GradientDescentOptimizer(lr)
+    #opt = tf.train.GradientDescentOptimizer(lr)
+    opt = tf.train.AdamOptimizer(lr)
+    #opt = tf.train.AdagradOptimizer(lr)
+    opt = tf.train.FtrlOptimizer(lr)
     grads = opt.compute_gradients(total_loss)
 
   # Apply gradients.
