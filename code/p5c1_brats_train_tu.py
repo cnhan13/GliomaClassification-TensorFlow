@@ -86,9 +86,9 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10 # DON'T KNOW YET
 
 # Contants describing the training process.
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
-NUM_EPOCHS_PER_DECAY = 20         # Epochs after which learning rate decays.
-LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor
-INITIAL_LEARNING_RATE = 1e-2       # Initial learning rate.
+NUM_EPOCHS_PER_DECAY = 2         # Epochs after which learning rate decays.
+LEARNING_RATE_DECAY_FACTOR = 0.96  # Learning rate decay factor
+INITIAL_LEARNING_RATE = 3e-2       # Initial learning rate.
 DROPOUT = 0.75
 
 def deb(tensor, msg):
@@ -676,11 +676,11 @@ def inference(mris):
     TensorFlow r1.0
     tf.concat(values, axis, name='concat')
     """
-    reshape = tf.concat([tf.reshape(pool2_t1, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool2_t1c, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool2_t2, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool2_fl, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool2_ot, [FLAGS.batch_size, -1])],
+    reshape = tf.concat([tf.reshape(pool4_t1 * pool4_ot, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool4_t1c * pool4_ot, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool4_t2 * pool4_ot, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool4_fl * pool4_ot, [FLAGS.batch_size, -1]),
+                        tf.reshape(pool4_ot, [FLAGS.batch_size, -1])],
                         axis=1)
     print reshape
     dim = reshape.get_shape()[1].value
@@ -747,8 +747,9 @@ def _add_loss_summaries(total_loss):
 
 def train(total_loss, global_step):
   # Variables that affect the learning rate
-  num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size
-  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
+  #num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size
+  #decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
+  decay_steps = 100
 
   # Decay the learning rate exponentially based on the number of steps
   lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
@@ -763,10 +764,10 @@ def train(total_loss, global_step):
 
   # Compute gradients.
   with tf.control_dependencies([loss_averages_op]):
-    #opt = tf.train.GradientDescentOptimizer(lr)
-    opt = tf.train.AdamOptimizer(lr)
+    opt = tf.train.GradientDescentOptimizer(lr)
+    #opt = tf.train.AdamOptimizer(lr)
     #opt = tf.train.AdagradOptimizer(lr)
-    opt = tf.train.FtrlOptimizer(lr)
+    #opt = tf.train.FtrlOptimizer(lr)
     grads = opt.compute_gradients(total_loss)
 
   # Apply gradients.
