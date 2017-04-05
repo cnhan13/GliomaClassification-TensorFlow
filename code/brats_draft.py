@@ -20,19 +20,19 @@ MHA_HEIGHT = 155
 MHA_WIDTH = 240
 MHA_DEPTH = 240
 
-NEW_HEIGHT = 148 - 0 + 1
-NEW_WIDTH = 220 - 36 + 1
-NEW_DEPTH = 201 - 40 + 1
+#NEW_HEIGHT = 148 - 0 + 1 # 0:149
+#NEW_WIDTH = 220 - 36 + 1 # 36:221
+#NEW_DEPTH = 201 - 40 + 1 # 40:202
 
 # func1
 def read_mha(filename):
   #mha_data = io.imread(filename, plugin='simpleitk')
   m = sio.imread(filename[0], plugin='simpleitk')
-  m = m[0:149, 36:221, 40:202]
+  #m = m[0:149, 36:221, 40:202]
   t = np.array([m])
   for i in xrange(1,5):
     p = sio.imread(filename[i], plugin='simpleitk')
-    p = p[0:149, 36:221, 40:202]
+    #p = p[0:149, 36:221, 40:202]
     t = np.append(t, [p], axis=0)
   return t
 
@@ -73,6 +73,9 @@ def generate_binary_input(path, train = True):
   highH = 0
   highW = 0
   highD = 0
+  szH = 0
+  szW = 0
+  szD = 0
 
   bin_path = '' # path of binary input file
   bin_name = '' # name of binary input file
@@ -120,6 +123,10 @@ def generate_binary_input(path, train = True):
     if path_file_list_counter == 5:
       path_file_list_counter = 0
       v = read_mha(path_file_list)
+      #find_largest_tumor_size(v) [115, 166, 129]
+      write_tumor(v, bin_path + bin_name)
+
+      # Brain focused
       #for i in xrange(4, 5):
       #  t = np.amax(np.amax(v[i], 1), 1)
       #  for j in xrange(lowH+1):
@@ -150,12 +157,122 @@ def generate_binary_input(path, train = True):
       #    if t[j] != 0:
       #      highD = j
       #      break
-      write_array(v, bin_path + bin_name)
+      #write_array(v, bin_path + bin_name)
     
       #print [lowH, highH, lowW, highW, lowD, highD]
       # whole brain [0, 148, 36, 220, 40, 201]
       # tumor       [7, 145, 40, 213, 50, 193]
   return
+
+def write_tumor(v, bb_path):
+  TU_H = 115
+  TU_W = 166
+  TU_D = 129
+  print bb_path
+  print v.shape
+  # Find tumor
+  t = np.amax(np.amax(v[4], 1), 1)
+  low = 0
+  high = MHA_HEIGHT
+  for j in xrange(MHA_HEIGHT):
+    if t[j] != 0:
+      low = j
+      break
+  for j in xrange(MHA_HEIGHT-1, -1, -1):
+    if t[j] != 0:
+      high = j
+      break
+  margin = (TU_H + 1 - (high - low + 1)) / 2
+  startH = min(max(low - margin, 0), MHA_HEIGHT - TU_H)
+  endH = startH + TU_H
+  
+  t = np.amax(np.amax(v[4], 0), 1)
+  low = 0
+  high = MHA_WIDTH
+  for j in xrange(MHA_WIDTH):
+    if t[j] != 0:
+      low = j
+      break
+  for j in xrange(MHA_WIDTH-1, -1, -1):
+    if t[j] != 0:
+      high = j
+      break
+  margin = (TU_W + 1 - (high - low + 1)) / 2
+  startW = min(max(low - margin, 0), MHA_WIDTH - TU_W)
+  endW = startW + TU_W
+  
+  t = np.amax(np.amax(v[4], 0), 0)
+  low = 0
+  high = MHA_DEPTH
+  for j in xrange(MHA_DEPTH):
+    if t[j] != 0:
+      low = j
+      break
+  for j in xrange(MHA_DEPTH-1, -1, -1):
+    if t[j] != 0:
+      high = j
+      break
+  margin = (TU_D + 1 - (high - low + 1)) / 2
+  startD = min(max(low - margin, 0), MHA_DEPTH - TU_D)
+  endD = startD + TU_D
+
+  u = np.array([v[0, startH:endH, startW:endW, startD:endD]])
+  for i in xrange(1,5):
+    m = v[i, startH:endH, startW:endW, startD:endD]
+    u = np.append(u, [m], axis=0)
+  print u.shape
+
+  write_array(u, bb_path)
+  return
+
+
+def find_largest_tumor_size(v):
+  #Tumor focus
+  for i in xrange(4, 5):
+    t = np.amax(np.amax(v[i], 1), 1)
+    low = 0
+    high = MHA_HEIGHT
+    for j in xrange(MHA_HEIGHT):
+      if t[j] != 0:
+        low = j
+        break
+    for j in xrange(MHA_HEIGHT-1, -1, -1):
+      if t[j] != 0:
+        high = j
+        break
+    if szH < high - low + 1:
+      szH = high - low + 1
+    
+    t = np.amax(np.amax(v[i], 0), 1)
+    low = 0
+    high = MHA_WIDTH
+    for j in xrange(MHA_WIDTH):
+      if t[j] != 0:
+        low = j
+        break
+    for j in xrange(MHA_WIDTH-1, -1, -1):
+      if t[j] != 0:
+        high = j
+        break
+    if szW < high - low + 1:
+      szW = high - low + 1
+    
+    t = np.amax(np.amax(v[i], 0), 0)
+    low = 0
+    high = MHA_DEPTH
+    for j in xrange(MHA_DEPTH):
+      if t[j] != 0:
+        low = j
+        break
+    for j in xrange(MHA_DEPTH-1, -1, -1):
+      if t[j] != 0:
+        high = j
+        break
+    if szD < high - low + 1:
+      szD = high - low + 1
+  
+  print [szH, szW, szD]
+  # largest tumor size [115, 166, 129]
 
 def try_read():
   path = "/home/nhan/Desktop/x2goshared/BRATS2015/BRATS2015_Training/in"
