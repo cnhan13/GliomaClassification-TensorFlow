@@ -63,7 +63,7 @@ def train():
 
 
 def main(argv=None): # pylint: disable=unused-argument
-  for i in xrange(10,15):
+  for i in xrange(15,16):
     _, _ = brats.get_input_list(i)
 
   #train()

@@ -76,6 +76,8 @@ def generate_binary_input(path, train = True):
   szH = 0
   szW = 0
   szD = 0
+  vmax = [0] * 5
+  vmin = [50000] * 5
 
   bin_path = '' # path of binary input file
   bin_name = '' # name of binary input file
@@ -123,8 +125,17 @@ def generate_binary_input(path, train = True):
     if path_file_list_counter == 5:
       path_file_list_counter = 0
       v = read_mha(path_file_list)
+      for i in xrange(5):
+        amx = np.amax(v[i])
+        amn = np.amin(v[i])
+        if amx > vmax[i]:
+          vmax[i] = amx
+        if amn < vmin[i]:
+          vmin[i] = amn
+      print vmax
+      print vmin
       #find_largest_tumor_size(v) [115, 166, 129]
-      write_tumor(v, bin_path + bin_name)
+      #write_tumor(v, bin_path + bin_name)
 
       # Brain focused
       #for i in xrange(4, 5):

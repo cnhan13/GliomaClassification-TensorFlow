@@ -96,8 +96,8 @@ def get_input_list(idx):
     # Train data info:        221 H, 54 L
     # Train quantity target:  70 H, 45 L
     # Train ratio target:     70/221 H, 45/54 H
-    prob_take_high = 5./221
-    prob_take_low = 5./54
+    prob_take_high = 1./221
+    prob_take_low = 1./54
 
     # farmer
     #prob_take_high = 70./178
