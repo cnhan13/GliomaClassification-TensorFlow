@@ -89,6 +89,60 @@ Check whether a file exists using tensorflow tf.gfile
 List all files of a directory
 http://stackoverflow.com/questions/3207219/how-to-list-all-files-of-a-directory
 
+==================== TensorFlow =====================
+Link gcc to gcc-4.9 to build tensorflow
+http://askubuntu.com/questions/26498/choose-gcc-and-g-version
+http://askubuntu.com/questions/428198/getting-installing-gcc-g-4-9-on-ubuntu
+
+Bypass weak SHA1 to install cuda_7.5 toolkit: install with cuda_7.5.18_linux.run instead of cuda*.deb
+http://askubuntu.com/questions/760242/how-can-i-force-16-04-to-add-a-repository-even-if-it-isnt-considered-secure-eno
+
+MOST HELPFUL: Install cuda toolkit, driver, and test them on ec2
+https://medium.com/@giltamari/tensorflow-getting-started-gpu-installation-on-ec2-9b9915d95d6f
+
+Side note: install Tensorflow gpu with cuda 8.0 by nvidia.com
+http://www.nvidia.com/object/gpu-accelerated-applications-tensorflow-installation.html
+
+Understand threads in tensorflow
+http://stackoverflow.com/questions/35689547/how-to-process-single-training-file-in-parallel
+
+Decouple preprocessing and training code with thread and placeholder
+http://stackoverflow.com/questions/34594198/how-to-prefetch-data-using-a-custom-python-function-in-tensorflow
+
+=================== Installation step ==============
+
+Install Cuda:
+  1. Download cuda_7.5.18_linux.run
+  2. Download NVIDIA-Linux-x86_64-367.27.run
+  3. Install g++-4.9 gcc-4.9
+  4. Install build-essential (this will accidentally install gcc-5)
+  5. Link gcc to gcc-4.9, g++ to g++-4.9
+  6. Error no MPI: sudo apt-get install libcr-dev mpich mpich-doc
+
+Install Bazel:
+  1. Uninstall bazel (if it is erronous)
+    rm -rf ~/.bazel ~/.bazelrc ~/.cache/bazel
+  2. Download NEW version of bazel (just try it)
+    https://github.com/bazelbuild/bazel/releases/download/0.4.5/bazel-0.4.5-installer-linux-x86_64.sh
+  3. Run bazel installer
+    chmod +x bazel-0.4.5-installer-linux-x86_64.sh
+    ./bazel-0.4.5-installer-linux-x86_64.sh --user
+
+Configure Tensorflow
+
+Build Pip Package
+  
+
+================ Scarry warning ===================
+
+when running sudo make in 
+>>> WARNING - libGLU.so not found, refer to CUDA Getting Started Guide for how to find and install them. <<<
+>>> WARNING - libX11.so not found, refer to CUDA Getting Started Guide for how to find and install them. <<<
+>>> WARNING - gl.h not found, refer to CUDA Getting Started Guide for how to find and install them. <<<
+>>> WARNING - glu.h not found, refer to CUDA Getting Started Guide for how to find and install them. <<<
+>>> WARNING - Xlib.h not found, refer to CUDA Getting Started Guide for how to find and install them. <<<
+
+=======
 CUDA_ERROR_OUT_OF_MEMORY
 http://stackoverflow.com/questions/34514324/error-using-tensorflow-with-gpu
 
