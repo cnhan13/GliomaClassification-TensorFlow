@@ -200,7 +200,6 @@ def inference(images):
   # by replacing all instances of tf.get_variable() with tf.Variable().
   #
   # conv1
-  images = deb2(images, "images: ")
   with tf.variable_scope('conv1') as scope:
     kernel = _variable_with_weight_decay('weights',
                                          shape=[5, 5, 3, 64],
@@ -271,32 +270,6 @@ def inference(images):
 
   return softmax_linear
 
-def deb(t, msg):
-  return tf.Print(t, [t], msg + ": ", summarize=30)
-
-def cnteq(t, val):
-  v = tf.equal(t, val)
-  v = tf.cast(v, tf.int32)
-  v = tf.cast(tf.reduce_sum(v), tf.float32)
-  v = deb(v, "v")
-  return v
-
-def cntneq(t, val):
-  v = tf.not_equal(t, val)
-  v = tf.cast(v, tf.int32)
-  v = tf.cast(tf.reduce_sum(v), tf.float32)
-  v = deb(v, "u")
-  return v
-  
-def deb2(t, msg):
-  v = cnteq(t, 0)
-  u = cntneq(t, 0)
-  t_n = tf.reduce_min(t)
-  t_n = deb(t_n, "t_min")
-  t_x = tf.reduce_max(t)
-  t_x = deb(t_x, "t_max")
-  t = t + t_n - t_n + t_x - t_x + v - v + u - u
-  return tf.Print(t, [t], msg + ": ", summarize=30)
 
 def loss(logits, labels):
   """Add L2Loss to all the trainable variables.

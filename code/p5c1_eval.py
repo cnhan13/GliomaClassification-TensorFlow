@@ -7,7 +7,7 @@ import tensorflow as tf
 
 import sys
 
-import p5c1_brats_train as p5c1
+import p5c1_train as p5c1
 
 FLAGS = tf.app.flags.FLAGS
 ### audi ###
@@ -16,7 +16,7 @@ tf.app.flags.DEFINE_string('eval_dir',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
-tf.app.flags.DEFINE_integer('eval_interval_secs', 10,
+tf.app.flags.DEFINE_integer('eval_interval_secs', 20,
                             """How often to run the eval.""")
 tf.app.flags.DEFINE_integer('num_examples', 200,
                             """Number of examples to run.""")
@@ -24,7 +24,7 @@ tf.app.flags.DEFINE_boolean('run_once', False,
                             """Whether to run eval only once.""")
 
 
-def eval_once(saver, summary_writer, top_k_op, summary_op):
+def eval_once(saver, summary_writer, top_k_op, summary_op, keep_prob):
   
   with tf.Session() as sess:
     ckpt = tf.train.get_checkpoint_state(evaluate.checkpoint_dir)
@@ -52,17 +52,16 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
       total_sample_count = num_iter * p5c1.FLAGS.batch_size
       step = 0
       while step < num_iter and not coord.should_stop():
-        top_k_op = p5c1.deb(top_k_op, "top_k_op")
-        predictions = sess.run([top_k_op])
+        predictions = sess.run([top_k_op], feed_dict={keep_prob: 1.0})
         true_count += np.sum(predictions)
         step += 1
 
       # Compute precision @ 1
-      precision = true_count / total_sample_count
-      print('%s: precision @ 1 = %.5f' % (datetime.now(), precision))
+      precision = 1.0 * true_count / total_sample_count
+      print('%s: precision @ 1 = %.5f | %.5f | %.5f' % (datetime.now(), precision, true_count, total_sample_count))
 
       summary = tf.Summary()
-      summary.ParseFromString(sess.run(summary_op))
+      summary.ParseFromString(sess.run(summary_op, feed_dict={keep_prob: 1.0}))
       summary.value.add(tag='Precision @ 1', simple_value=precision)
       summary_writer.add_summary(summary, global_step)
     except Exception as e:
@@ -81,8 +80,8 @@ def evaluate(is_tumor_cropped=False):
                                   is_train_list=False,
                                   batch_size=p5c1.FLAGS.batch_size,
                                   set_number=evaluate.set_number)
-
-    logits = p5c1.inference(records)
+    keep_prob = tf.placeholder(tf.float32)
+    logits = p5c1.inference(records, keep_prob)
     labels = p5c1.deb(labels, "labels")
     logits = p5c1.deb(logits, "logits")
 
@@ -101,7 +100,7 @@ def evaluate(is_tumor_cropped=False):
     summary_writer = tf.summary.FileWriter(evaluate.eval_dir, g)
 
     while True:
-      eval_once(saver, summary_writer, top_k_op, summary_op)
+      eval_once(saver, summary_writer, top_k_op, summary_op, keep_prob)
       if FLAGS.run_once:
         break
       time.sleep(FLAGS.eval_interval_secs)
@@ -109,7 +108,7 @@ def evaluate(is_tumor_cropped=False):
 def main(argv=None):
   
   evaluate.set_number = sys.argv[1]
-  is_tumor_cropped = (sys.argv[2] == 0)
+  is_tumor_cropped = (sys.argv[2] == '1')
   evaluate.eval_dir = p5c1.FLAGS.common_dir
   evaluate.eval_dir += p5c1.FLAGS.tumor_dir if is_tumor_cropped else p5c1.FLAGS.brain_dir
   evaluate.checkpoint_dir = evaluate.eval_dir + p5c1.FLAGS.train_dir + evaluate.set_number

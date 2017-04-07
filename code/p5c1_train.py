@@ -76,10 +76,9 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = -1 # DON'T KNOW YET
 
 # Contants describing the training process.
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
-NUM_EPOCHS_PER_DECAY = 100         # Epochs after which learning rate decays.
-LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor
+NUM_EPOCHS_PER_DECAY = 300         # Epochs after which learning rate decays.
+LEARNING_RATE_DECAY_FACTOR = 0.96  # Learning rate decay factor
 INITIAL_LEARNING_RATE = 0.01       # Initial learning rate.
-DROPOUT = 0.5
 
 def deb(tensor, msg):
   return tf.Print(tensor, [tensor], message=msg + ": ", summarize=30)
@@ -271,7 +270,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
   return var
 
 
-def inference(mris):
+def inference(mris, keep_prob):
   # T1 T1c T2 Flair OT
   # conv1
   # (batch_size, 5, 149, 185, 162)
@@ -682,7 +681,8 @@ def inference(mris):
                                           stddev=0.04, wd=0.004)
     biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
     local5 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
-    local5 = tf.nn.dropout(local5, DROPOUT)
+    keep_prob = deb(keep_prob, 'keep_prob')
+    local5 = tf.nn.dropout(local5, keep_prob)
     _activation_summary(local5)
 
   print local5
@@ -693,7 +693,7 @@ def inference(mris):
                                           stddev=0.04, wd=0.004)
     biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
     local6 = tf.nn.relu(tf.matmul(local5, weights) + biases, name=scope.name)
-    local6 = tf.nn.dropout(local6, DROPOUT)
+    local6 = tf.nn.dropout(local6, keep_prob)
     _activation_summary(local6)
 
   print local6
@@ -703,8 +703,7 @@ def inference(mris):
                                           stddev=1/192.0, wd=0.0)
     biases = _variable_on_cpu('biases', [NUM_CLASSES], tf.constant_initializer(0.0))
     local7 = tf.add(tf.matmul(local6, weights), biases, name=scope.name)
-    #local7 = tf.nn.dropout(local7, DROPOUT)
-    local7 = deb(local7, "local7")
+    local7 = tf.nn.dropout(local7, keep_prob)
     _activation_summary(local7)
     
   print local7
@@ -713,6 +712,7 @@ def inference(mris):
 
 def loss(logits, labels):
   # Calculate the average cross entropy loss across the batch
+  logits = deb(logits, 'logits')
   labels = tf.cast(labels, tf.int64)
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
       labels=labels, logits=logits, name='cross_entropy_per_example')
@@ -785,6 +785,8 @@ def train(total_loss, global_step):
 
 def proceed(is_tumor_cropped=False):
   with tf.Graph().as_default():
+    keep_prob = tf.placeholder(tf.float32)
+    
     global_step = tf.contrib.framework.get_or_create_global_step()
 
     records, labels = inputs(is_tumor_cropped=is_tumor_cropped,
@@ -792,7 +794,7 @@ def proceed(is_tumor_cropped=False):
                              batch_size=FLAGS.batch_size,
                              set_number=proceed.set_number)
     
-    batch_logits = inference(records)
+    batch_logits = inference(records, keep_prob)
 
     labels = deb(labels, "labels")
 
@@ -826,15 +828,17 @@ def proceed(is_tumor_cropped=False):
           print (format_str % (datetime.now(), self._step, loss_value,
                                examples_per_sec, sec_per_batch))
 
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
     with tf.train.MonitoredTrainingSession(
         checkpoint_dir=proceed.train_dir,
         hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
                tf.train.NanTensorHook(batch_loss),
                _LoggerHook()],
         config=tf.ConfigProto(
-          log_device_placement=FLAGS.log_device_placement)) as ma_sess: # my in French, seance
+          log_device_placement=FLAGS.log_device_placement,
+          gpu_options=gpu_options)) as ma_sess: # my in French, seance
       while not ma_sess.should_stop():
-        ma_sess.run(train_op)
+        ma_sess.run(train_op, feed_dict={keep_prob: 0.5})
 
 
 
