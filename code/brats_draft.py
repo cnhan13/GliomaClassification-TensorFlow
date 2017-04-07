@@ -1,5 +1,6 @@
 import numpy as np
 import skimage.io as sio
+import SimpleITK as sitk
 
 import os
 
@@ -16,22 +17,27 @@ TRAIN_PATH = "/home/cnhan21/dl/BRATS2015/BRATS2015_Training/"
 #TRAIN_PATH = "/home/ubuntu/dl/BRATS2015/BRATS2015_Training"
 
 NUM_FILES_PER_ENTRY = 5
-MHA_HEIGHT = 155
-MHA_WIDTH = 240
-MHA_DEPTH = 240
+# Top down look. Bottom: back. Top: front
+MHA_DEPTH = 155 # old: height
+MHA_HEIGHT= 240 # old: width
+MHA_WIDTH = 240 # old: depth
 
-#NEW_HEIGHT = 148 - 0 + 1 # 0:149
-#NEW_WIDTH = 220 - 36 + 1 # 36:221
-#NEW_DEPTH = 201 - 40 + 1 # 40:202
+#NEW_DEPTH = 148 - 0 + 1 # 0:149
+#NEW_HEIGHT= 220 - 36 + 1 # 36:221
+#NEW_WIDTH = 201 - 40 + 1 # 40:202
 
 # func1
 def read_mha(filename):
   #mha_data = io.imread(filename, plugin='simpleitk')
-  m = sio.imread(filename[0], plugin='simpleitk')
+  #m = sio.imread(filename[0], plugin='simpleitk')
+  m = sitk.ReadImage(filename[0])
+  m = sitk.GetArrayFromImage(m)
   #m = m[0:149, 36:221, 40:202]
   t = np.array([m])
   for i in xrange(1,5):
-    p = sio.imread(filename[i], plugin='simpleitk')
+    #p = sio.imread(filename[i], plugin='simpleitk')
+    p = sitk.ReadImage(filename[i])
+    p = sitk.GetArrayFromImage(p)
     #p = p[0:149, 36:221, 40:202]
     t = np.append(t, [p], axis=0)
   return t
@@ -49,9 +55,9 @@ def read_array_from_file(full_path_name):
   t = np.fromfile(f, dtype=np.int16)
   f.close()
   t = t.reshape((NUM_FILES_PER_ENTRY, \
+                MHA_DEPTH, \
                 MHA_HEIGHT, \
-                MHA_WIDTH, \
-                MHA_DEPTH)) # order='C'
+                MHA_WIDTH)) # order='C'
   return t
 
 # func4
@@ -62,22 +68,21 @@ def view_slice(v):
   return
 
 # func5
+lowD = MHA_DEPTH-1
+lowH = MHA_HEIGHT-1
+lowW = MHA_WIDTH-1
+highD = 0
+highH = 0
+highW = 0
+szD = 0
+szH = 0
+szW = 0
+vmax = [0] * 5
+vmin = [50000] * 5
 def generate_binary_input(path, train = True):
   if not train:
     print 'generate_binary_input() is not yet implemented for not train data'
     return
-  
-  lowH = MHA_HEIGHT-1
-  lowW = MHA_WIDTH-1
-  lowD = MHA_DEPTH-1
-  highH = 0
-  highW = 0
-  highD = 0
-  szH = 0
-  szW = 0
-  szD = 0
-  vmax = [0] * 5
-  vmin = [50000] * 5
 
   bin_path = '' # path of binary input file
   bin_name = '' # name of binary input file
@@ -125,71 +130,58 @@ def generate_binary_input(path, train = True):
     if path_file_list_counter == 5:
       path_file_list_counter = 0
       v = read_mha(path_file_list)
-      for i in xrange(5):
-        amx = np.amax(v[i])
-        amn = np.amin(v[i])
-        if amx > vmax[i]:
-          vmax[i] = amx
-        if amn < vmin[i]:
-          vmin[i] = amn
-      print vmax
-      print vmin
-      #find_largest_tumor_size(v) [115, 166, 129]
+      find_min_max(v)
+      #find_largest_tumor_size(v) #[115, 166, 129]
       #write_tumor(v, bin_path + bin_name)
-
-      # Brain focused
-      #for i in xrange(4, 5):
-      #  t = np.amax(np.amax(v[i], 1), 1)
-      #  for j in xrange(lowH+1):
-      #    if t[j] != 0:
-      #      lowH = j
-      #      break
-      #  for j in xrange(MHA_HEIGHT-1, highH-1, -1):
-      #    if t[j] != 0:
-      #      highH = j
-      #      break
-
-      #  t = np.amax(np.amax(v[i], 0), 1)
-      #  for j in xrange(lowW+1):
-      #    if t[j] != 0:
-      #      lowW = j
-      #      break
-      #  for j in xrange(MHA_WIDTH-1, highW-1, -1):
-      #    if t[j] != 0:
-      #      highW = j
-      #      break
-
-      #  t = np.amax(np.amax(v[i], 0), 0)
-      #  for j in xrange(lowD+1):
-      #    if t[j] != 0:
-      #      lowD = j
-      #      break
-      #  for j in xrange(MHA_DEPTH-1, highD-1, -1):
-      #    if t[j] != 0:
-      #      highD = j
-      #      break
-      #write_array(v, bin_path + bin_name)
-    
-      #print [lowH, highH, lowW, highW, lowD, highD]
-      # whole brain [0, 148, 36, 220, 40, 201]
-      # tumor       [7, 145, 40, 213, 50, 193]
+      #write_tumor(v, bin_path + bin_name)
   return
 
+def find_min_max(v):
+  global vmax
+  global vmin
+
+  for i in xrange(5):
+    amx = np.amax(v[i])
+    amn = np.amin(v[i])
+    if amx > vmax[i]:
+      vmax[i] = amx
+    if amn < vmin[i]:
+      vmin[i] = amn
+  print vmax
+  print vmin
+  # (min, max) = (-551, 7779)
+
+
 def write_tumor(v, bb_path):
-  TU_H = 115
-  TU_W = 166
-  TU_D = 129
+  TU_D = 115
+  TU_H = 166
+  TU_W = 129
   print bb_path
   print v.shape
   # Find tumor
   t = np.amax(np.amax(v[4], 1), 1)
+  low = 0
+  high = MHA_DEPTH
+  for j in xrange(MHA_DEPTH):
+    if t[j] != 0:
+      low = j
+      break
+  for j in xrange(MHA_DEPTH-1, -1, -1):
+    if t[j] != 0:
+      high = j
+      break
+  margin = (TU_D + 1 - (high - low + 1)) / 2
+  startD = min(max(low - margin, 0), MHA_DEPTH - TU_D)
+  endD = startD + TU_D
+  
+  t = np.amax(np.amax(v[4], 0), 1)
   low = 0
   high = MHA_HEIGHT
   for j in xrange(MHA_HEIGHT):
     if t[j] != 0:
       low = j
       break
-  for j in xrange(MHA_HEIGHT-1, -1, -1):
+  for j in xrange(MHA_HEIGHT, -1, -1, -1):
     if t[j] != 0:
       high = j
       break
@@ -197,7 +189,7 @@ def write_tumor(v, bb_path):
   startH = min(max(low - margin, 0), MHA_HEIGHT - TU_H)
   endH = startH + TU_H
   
-  t = np.amax(np.amax(v[4], 0), 1)
+  t = np.amax(np.amax(v[4], 0), 0)
   low = 0
   high = MHA_WIDTH
   for j in xrange(MHA_WIDTH):
@@ -212,35 +204,85 @@ def write_tumor(v, bb_path):
   startW = min(max(low - margin, 0), MHA_WIDTH - TU_W)
   endW = startW + TU_W
   
-  t = np.amax(np.amax(v[4], 0), 0)
-  low = 0
-  high = MHA_DEPTH
-  for j in xrange(MHA_DEPTH):
-    if t[j] != 0:
-      low = j
-      break
-  for j in xrange(MHA_DEPTH-1, -1, -1):
-    if t[j] != 0:
-      high = j
-      break
-  margin = (TU_D + 1 - (high - low + 1)) / 2
-  startD = min(max(low - margin, 0), MHA_DEPTH - TU_D)
-  endD = startD + TU_D
-
-  u = np.array([v[0, startH:endH, startW:endW, startD:endD]])
+  tum = v[0, startD:endD, startH:endH, startW:endW]
+  print tum.shape
+  sio.imsave('test.mha', tum, plugin='simpleitk')
+  u = np.array([v[0, startD:endD, startH:endH, startW:endW]])
   for i in xrange(1,5):
-    m = v[i, startH:endH, startW:endW, startD:endD]
+    m = v[i, startD:endD, startH:endH, startW:endW]
     u = np.append(u, [m], axis=0)
   print u.shape
 
-  write_array(u, bb_path)
+  #write_array(u, bb_path)
   return
 
+def write_brain(v, bb_path):
+  global lowD
+  global highD
+  global lowH
+  global highH
+  global lowW
+  global highW
+  # Brain focused
+  for i in xrange(4, 5):
+    t = np.amax(np.amax(v[i], 1), 1)
+    for j in xrange(lowD+1):
+      if t[j] != 0:
+        lowD = j
+        break
+    for j in xrange(MHA_DEPTH-1, highD-1, -1):
+      if t[j] != 0:
+        highD = j
+        break
+
+    t = np.amax(np.amax(v[i], 0), 1)
+    for j in xrange(lowH+1):
+      if t[j] != 0:
+        lowH = j
+        break
+    for j in xrange(MHA_HEIGHT-1, highH-1, -1):
+      if t[j] != 0:
+        highH = j
+        break
+
+    t = np.amax(np.amax(v[i], 0), 0)
+    for j in xrange(lowW+1):
+      if t[j] != 0:
+        lowW = j
+        break
+    for j in xrange(MHA_WIDTH-1, highW-1, -1):
+      if t[j] != 0:
+        highW = j
+        break
+  write_array(v, bin_path + bin_name)
+
+  print [lowD, highD, lowH, highH, lowW, highW]
+  # whole brain [0, 148, 36, 220, 40, 201]
+  # tumor       [7, 145, 40, 213, 50, 193]
+  return
 
 def find_largest_tumor_size(v):
+  global szD
+  global szH
+  global szW
+
   #Tumor focus
   for i in xrange(4, 5):
     t = np.amax(np.amax(v[i], 1), 1)
+    low = 0
+    high = MHA_DEPTH
+    for j in xrange(MHA_DEPTH):
+      if t[j] != 0:
+        low = j
+        break
+    for j in xrange(MHA_DEPTH-1, -1, -1):
+      if t[j] != 0:
+        high = j
+        break
+    if szD < high - low + 1:
+      szD = high - low + 1
+    
+    t = np.amax(np.amax(v[i], 0), 1)
     low = 0
     high = MHA_HEIGHT
     for j in xrange(MHA_HEIGHT):
@@ -254,7 +296,7 @@ def find_largest_tumor_size(v):
     if szH < high - low + 1:
       szH = high - low + 1
     
-    t = np.amax(np.amax(v[i], 0), 1)
+    t = np.amax(np.amax(v[i], 0), 0)
     low = 0
     high = MHA_WIDTH
     for j in xrange(MHA_WIDTH):
@@ -267,22 +309,8 @@ def find_largest_tumor_size(v):
         break
     if szW < high - low + 1:
       szW = high - low + 1
-    
-    t = np.amax(np.amax(v[i], 0), 0)
-    low = 0
-    high = MHA_DEPTH
-    for j in xrange(MHA_DEPTH):
-      if t[j] != 0:
-        low = j
-        break
-    for j in xrange(MHA_DEPTH-1, -1, -1):
-      if t[j] != 0:
-        high = j
-        break
-    if szD < high - low + 1:
-      szD = high - low + 1
   
-  print [szH, szW, szD]
+  print [szD, szH, szW]
   # largest tumor size [115, 166, 129]
 
 def try_read():
@@ -297,11 +325,11 @@ def try_read():
   return
 
 if __name__ == "__main__":
-  # f = ["VSD.Brain.XX.O.MR_T1.35536.mha", \
-  #     "VSD.Brain.XX.O.MR_T1c.35535.mha", \
-  #     "VSD.Brain.XX.O.MR_T2.35534.mha", \
-  #     "VSD.Brain.XX.O.MR_Flair.35533.mha", \
-  #     "VSD.Brain_3more.XX.O.OT.42283.mha"]
+  f = ["VSD.Brain.XX.O.MR_T1.54513.mha",
+      "VSD.Brain.XX.O.MR_T1c.54514.mha",
+      "VSD.Brain.XX.O.MR_T2.54515.mha",
+      "VSD.Brain.XX.O.MR_Flair.54512.mha",
+      "VSD.Brain_3more.XX.O.OT.54517.mha"]
   # v = read_mha(f)
   # f2 = "data_105"
   # write_array(v, f2)

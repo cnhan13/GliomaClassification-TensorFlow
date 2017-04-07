@@ -58,8 +58,8 @@ tf.app.flags.DEFINE_boolean('use_fp16', False,
 # Global constants describing the CIFAR-10 data set.
 IMAGE_SIZE = cifar10_input.IMAGE_SIZE
 NUM_CLASSES = cifar10_input.NUM_CLASSES
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
-NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN # 50000
+NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL # 10000
 
 
 # Constants describing the training process.
@@ -200,6 +200,7 @@ def inference(images):
   # by replacing all instances of tf.get_variable() with tf.Variable().
   #
   # conv1
+  images = deb2(images, "images: ")
   with tf.variable_scope('conv1') as scope:
     kernel = _variable_with_weight_decay('weights',
                                          shape=[5, 5, 3, 64],
@@ -266,11 +267,36 @@ def inference(images):
     biases = _variable_on_cpu('biases', [NUM_CLASSES],
                               tf.constant_initializer(0.0))
     softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
-    softmax_linear = tf.Print(softmax_linear, [softmax_linear], "softmax_linear: ")
     _activation_summary(softmax_linear)
 
   return softmax_linear
 
+def deb(t, msg):
+  return tf.Print(t, [t], msg + ": ", summarize=30)
+
+def cnteq(t, val):
+  v = tf.equal(t, val)
+  v = tf.cast(v, tf.int32)
+  v = tf.cast(tf.reduce_sum(v), tf.float32)
+  v = deb(v, "v")
+  return v
+
+def cntneq(t, val):
+  v = tf.not_equal(t, val)
+  v = tf.cast(v, tf.int32)
+  v = tf.cast(tf.reduce_sum(v), tf.float32)
+  v = deb(v, "u")
+  return v
+  
+def deb2(t, msg):
+  v = cnteq(t, 0)
+  u = cntneq(t, 0)
+  t_n = tf.reduce_min(t)
+  t_n = deb(t_n, "t_min")
+  t_x = tf.reduce_max(t)
+  t_x = deb(t_x, "t_max")
+  t = t + t_n - t_n + t_x - t_x + v - v + u - u
+  return tf.Print(t, [t], msg + ": ", summarize=30)
 
 def loss(logits, labels):
   """Add L2Loss to all the trainable variables.
@@ -337,8 +363,8 @@ def train(total_loss, global_step):
     train_op: op for training.
   """
   # Variables that affect learning rate.
-  num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size
-  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
+  num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size # 50000 / 128 = 390
+  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY) # int(390 * 350.0) = 136500
 
   # Decay the learning rate exponentially based on the number of steps.
   lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
