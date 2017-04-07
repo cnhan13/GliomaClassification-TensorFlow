@@ -20,12 +20,11 @@ tf.app.flags.DEFINE_integer('eval_interval_secs', 20,
                             """How often to run the eval.""")
 tf.app.flags.DEFINE_integer('num_examples', 200,
                             """Number of examples to run.""")
-tf.app.flags.DEFINE_boolean('run_once', False,
+tf.app.flags.DEFINE_boolean('run_once', True,
                             """Whether to run eval only once.""")
 
 
 def eval_once(saver, summary_writer, top_k_op, summary_op, keep_prob):
-  
   with tf.Session() as sess:
     ckpt = tf.train.get_checkpoint_state(evaluate.checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
@@ -109,14 +108,19 @@ def main(argv=None):
   
   evaluate.set_number = sys.argv[1]
   is_tumor_cropped = (sys.argv[2] == '1')
+  set_char = sys.argv[3]
+
   evaluate.eval_dir = p5c1.FLAGS.common_dir
   evaluate.eval_dir += p5c1.FLAGS.tumor_dir if is_tumor_cropped else p5c1.FLAGS.brain_dir
-  evaluate.checkpoint_dir = evaluate.eval_dir + p5c1.FLAGS.train_dir + evaluate.set_number
-  evaluate.eval_dir += FLAGS.eval_dir + evaluate.set_number
+  evaluate.checkpoint_dir = evaluate.eval_dir + p5c1.FLAGS.train_dir \
+                          + evaluate.set_number + "_" + set_char
+  evaluate.eval_dir += FLAGS.eval_dir + evaluate.set_number \
+                      + "_" + set_char
 
   if tf.gfile.Exists(evaluate.eval_dir):
     tf.gfile.DeleteRecursively(evaluate.eval_dir)
   tf.gfile.MakeDirs(evaluate.eval_dir)
+
   evaluate(is_tumor_cropped=is_tumor_cropped)
 
 if __name__ == '__main__':

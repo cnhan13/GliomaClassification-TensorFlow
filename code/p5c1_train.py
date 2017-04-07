@@ -12,14 +12,19 @@ import time
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_integer('batch_size', 5, """Number of images to process in a batch.""")
+tf.app.flags.DEFINE_integer('batch_size', 5,
+                            """Number of images to process in a batch.""")
 
-tf.app.flags.DEFINE_integer('max_steps', 100000, """Number of batches to train.""")
+tf.app.flags.DEFINE_integer('max_steps', 50000,
+                            """Number of batches to train.""")
 
 tf.app.flags.DEFINE_integer('set_quantity', 10, """Number of sets to run.""")
 
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
+
+tf.app.flags.DEFINE_boolean('per_process_gpu_memory_fraction', 0.5,
+                            """Fraction of GPU memory used for training""")
 
 tf.app.flags.DEFINE_integer('log_frequency', 10,
                            """How often to log results to the console.""")
@@ -184,10 +189,16 @@ def inputs(is_tumor_cropped, is_train_list, batch_size, set_number):
 
   # Ensure random shuffling has good mixing properties.
   min_fraction_of_examples_in_queue = 0.8
-  min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN *
-                           min_fraction_of_examples_in_queue)
-  print ('Filling queue with %d BRATS records before starting to train. '
-         'This will take a few minutes.' % min_queue_examples)
+  if is_train_list:
+    min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN *
+                             min_fraction_of_examples_in_queue)
+    print ('Filling queue with %d BRATS records before starting to train. '
+           'This will take a few minutes.' % min_queue_examples)
+  else:
+    min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_EVAL *
+                             min_fraction_of_examples_in_queue)
+    print ('Filling queue with %d BRATS records before starting to evaluate. '
+           'This will take a few minutes.' % min_queue_examples)
 
   # Generate a batch of 5-mri records and labels by building up a queue of records
   return generate_record_and_label_batch(normalized_mris, read_input.label,
@@ -681,7 +692,7 @@ def inference(mris, keep_prob):
                                           stddev=0.04, wd=0.004)
     biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
     local5 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
-    keep_prob = deb(keep_prob, 'keep_prob')
+    #keep_prob = deb(keep_prob, 'keep_prob')
     local5 = tf.nn.dropout(local5, keep_prob)
     _activation_summary(local5)
 
@@ -712,7 +723,7 @@ def inference(mris, keep_prob):
 
 def loss(logits, labels):
   # Calculate the average cross entropy loss across the batch
-  logits = deb(logits, 'logits')
+  #logits = deb(logits, 'logits')
   labels = tf.cast(labels, tf.int64)
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
       labels=labels, logits=logits, name='cross_entropy_per_example')
@@ -741,8 +752,8 @@ def _add_loss_summaries(total_loss):
 
 def train(total_loss, global_step):
   # Variables that affect the learning rate
-  num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size # 115 / 5 = 23
-  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY) # 23 * 100 = 2300
+  num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size # 115 / 5 = 23 (might be 113/5=22)
+  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY) # 23 * 300 = 6900 (might be 22*300=6600)
 
   # Decay the learning rate exponentially based on the number of steps
   lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
@@ -783,11 +794,25 @@ def train(total_loss, global_step):
   return train_op
 
 
-def proceed(is_tumor_cropped=False):
+def proceed(is_tumor_cropped=False, with_reset=False):
+  """
+  with_reset:
+    False - Proceed to restore variables for training
+    True - Proceed with a new set of variables
+  """
+
   with tf.Graph().as_default():
-    keep_prob = tf.placeholder(tf.float32)
-    
+    keep_prob = tf.placeholder(tf.float32, name="keep_prob")
+
+    ckpt = tf.train.get_checkpoint_state(proceed.train_dir)
+
     global_step = tf.contrib.framework.get_or_create_global_step()
+
+    last_global_step = -1
+    if (not with_reset) and ckpt and ckpt.model_checkpoint_path:
+      last_global_step = int(
+          ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1])
+      saver = tf.train.Saver()
 
     records, labels = inputs(is_tumor_cropped=is_tumor_cropped,
                              is_train_list=True,
@@ -796,7 +821,7 @@ def proceed(is_tumor_cropped=False):
     
     batch_logits = inference(records, keep_prob)
 
-    labels = deb(labels, "labels")
+    #labels = deb(labels, "labels")
 
     batch_loss = loss(batch_logits, labels)
 
@@ -806,12 +831,13 @@ def proceed(is_tumor_cropped=False):
       """Logs loss and runtime."""
 
       def begin(self):
-        self._step = -1
+        self._step = last_global_step
         self._start_time = time.time()
 
       def before_run(self, run_context):
         self._step += 1
-        return tf.train.SessionRunArgs(batch_loss)  # Asks for loss value.
+        return tf.train.SessionRunArgs(batch_loss,
+            feed_dict={keep_prob: 0.5})  # Asks for loss value.
 
       def after_run(self, run_context, run_values):
         if self._step % FLAGS.log_frequency == 0:
@@ -828,18 +854,21 @@ def proceed(is_tumor_cropped=False):
           print (format_str % (datetime.now(), self._step, loss_value,
                                examples_per_sec, sec_per_batch))
 
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
+    #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
+    config = tf.ConfigProto(log_device_placement=FLAGS.log_device_placement)
+        #gpu_options=gpu_options)
     with tf.train.MonitoredTrainingSession(
         checkpoint_dir=proceed.train_dir,
         hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
                tf.train.NanTensorHook(batch_loss),
                _LoggerHook()],
-        config=tf.ConfigProto(
-          log_device_placement=FLAGS.log_device_placement,
-          gpu_options=gpu_options)) as ma_sess: # my in French, seance
-      while not ma_sess.should_stop():
-        ma_sess.run(train_op, feed_dict={keep_prob: 0.5})
+        config=config) as ma_sess: # my in French, seance
 
+      if (not with_reset) and ckpt and ckpt.model_checkpoint_path:
+        saver.restore(ma_sess, ckpt.model_checkpoint_path)
+
+      while not ma_sess.should_stop():
+        ma_sess.run(train_op)
 
 
 def main(argv=None):
@@ -853,15 +882,22 @@ def main(argv=None):
 
   proceed.set_number = sys.argv[1]
   is_tumor_cropped = (sys.argv[2] == '1')
+  with_reset = (sys.argv[3] == '1')
+  set_char = sys.argv[4]
+
   proceed.train_dir = FLAGS.common_dir
   proceed.train_dir += FLAGS.tumor_dir if is_tumor_cropped else FLAGS.brain_dir
-  proceed.train_dir += FLAGS.train_dir + proceed.set_number
+  proceed.train_dir += FLAGS.train_dir + proceed.set_number + "_" + set_char
 
-  if tf.gfile.Exists(proceed.train_dir):
-    tf.gfile.DeleteRecursively(proceed.train_dir)
-  tf.gfile.MakeDirs(proceed.train_dir)
+  if with_reset:
+    if tf.gfile.Exists(proceed.train_dir):
+      tf.gfile.DeleteRecursively(proceed.train_dir)
+    tf.gfile.MakeDirs(proceed.train_dir)
+  else:
+    if not tf.gfile.Exists(proceed.train_dir):
+      tf.gfile.MakeDirs(proceed.train_dir)
 
-  proceed(is_tumor_cropped=is_tumor_cropped)
+  proceed(is_tumor_cropped=is_tumor_cropped, with_reset=with_reset)
   
 
 if __name__ == '__main__':
