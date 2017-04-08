@@ -1,3 +1,5 @@
+#!/bin/bash
+set -e
 NUM_SET=9
 IS_TUMOR_CROPPED=1
 MODEL_ID="a"
@@ -13,17 +15,17 @@ do
   for ((j=1; j<=$MAX_NUM_EVALS; j++))
   do
     date
-    START=`expr ( $j - 1 ) * $TRAIN_STEPS + 1`
-    END=`expr $j * $TRAIN_STEPS`
+    START=$(( ($j - 1) * $TRAIN_STEPS + 1))
+    END=$(($j * $TRAIN_STEPS))
     echo "Training set $i, tumor_cropped $IS_TUMOR_CROPPED, set_char $MODEL_ID, training steps interval [$START; $END]"
     train_out="p5c1_train_set${i}_tumor${IS_TUMOR_CROPPED}_model${MODEL_ID}_${START}-to-${END}"
     python p5c1_train.py $i $IS_TUMOR_CROPPED $IS_RESET $MODEL_ID $j | tee $train_out
     date
     echo "Evaluating set $i, tumor_cropped $IS_TUMOR_CROPPED"
     eval_out="p5c1_eval_set${i}_tumor${IS_TUMOR_CROPPED}_model${MODEL_ID}_steps${END}"
-    python p5c1_eval.py $i $IS_TUMOR_CROPPED $IS_RESET $MODEL_ID $j | tee $eval_out
+    python p5c1_eval.py $i $IS_TUMOR_CROPPED $MODEL_ID | tee $eval_out
     rsync -vru $TRAIN_RESULTS $DROPBOX_DIR
     rsync -vru $EVAL_RESULTS $DROPBOX_DIR
-    rsync -vu $MODEL_CODE_LOG ${DROPBOX_DIX}code-log/
+    rsync -vu $MODEL_CODE_LOG ${DROPBOX_DIR}code-log/
   done
 done

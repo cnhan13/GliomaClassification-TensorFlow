@@ -850,9 +850,12 @@ def proceed(max_steps, is_tumor_cropped=False, with_reset=False):
                         'sec/batch)')
           print (format_str % (datetime.now(), self._step, loss_value,
                                examples_per_sec, sec_per_batch))
+
+    saver_for_ckpt = tf.train.Saver()
     ckpt_saver_hook = tf.train.CheckpointSaverHook(
         checkpoint_dir=proceed.train_dir,
         save_steps=FLAGS.num_train_steps_per_eval,
+        saver=saver_for_ckpt,
         checkpoint_basename='p5c1.ckpt')
     config = tf.ConfigProto(log_device_placement=FLAGS.log_device_placement)
     with tf.train.MonitoredTrainingSession(
