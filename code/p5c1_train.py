@@ -15,8 +15,8 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 5,
                             """Number of images to process in a batch.""")
 
-tf.app.flags.DEFINE_integer('max_steps', 50000,
-                            """Number of batches to train.""")
+tf.app.flags.DEFINE_integer('num_train_steps_per_eval', 500,
+                            """Number of steps between 2 evaluations.""")
 
 tf.app.flags.DEFINE_integer('set_quantity', 10, """Number of sets to run.""")
 
@@ -245,7 +245,6 @@ def get_list(set_number, is_tumor_cropped=False, is_train=True):
       NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = len(_list)
 
     print "List name: " + list_name
-    print "Set number: " + set_number
     print "Number of input files: " + str(len(_list))
 
     return _list, len(in_dir)
@@ -356,7 +355,7 @@ def inference(mris, keep_prob):
     conv1_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
     _activation_summary(conv1_ot)
 
-  print conv1_ot
+  #print conv1_ot
 
   # pool1
   pool1_t1 = tf.nn.max_pool3d(conv1_t1,
@@ -388,7 +387,7 @@ def inference(mris, keep_prob):
                               strides=[1, 2, 2, 2, 1],
                               padding='SAME',
                               name='pool1_ot')
-  print pool1_ot
+  #print pool1_ot
 
   # conv2
   with tf.variable_scope('conv2_t1') as scope:
@@ -461,7 +460,7 @@ def inference(mris, keep_prob):
     conv2_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
     _activation_summary(conv2_ot)
 
-  print conv2_ot
+  #print conv2_ot
 
   # pool2
   pool2_t1 = tf.nn.max_pool3d(conv2_t1,
@@ -494,7 +493,7 @@ def inference(mris, keep_prob):
                               padding='SAME',
                               name='pool2_ot')
   
-  print pool2_ot
+  #print pool2_ot
 
   ## conv3
   with tf.variable_scope('conv3_t1') as scope:
@@ -567,7 +566,7 @@ def inference(mris, keep_prob):
     conv3_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
     _activation_summary(conv3_ot)
 
-  print conv3_ot
+  #print conv3_ot
 
   # conv4
   with tf.variable_scope('conv4_t1') as scope:
@@ -640,7 +639,7 @@ def inference(mris, keep_prob):
     conv4_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
     _activation_summary(conv4_ot)
 
-  print conv4_ot
+  #print conv4_ot
 
   # pool4
   pool4_t1 = tf.nn.max_pool3d(conv4_t1,
@@ -672,7 +671,7 @@ def inference(mris, keep_prob):
                               strides=[1, 2, 2, 2, 1],
                               padding='SAME',
                               name='pool4_ot')
-  print pool4_ot
+  #print pool4_ot
 
   # local5
   with tf.variable_scope('local5') as scope:
@@ -686,7 +685,7 @@ def inference(mris, keep_prob):
                         tf.reshape(pool4_fl, [FLAGS.batch_size, -1]),
                         tf.reshape(pool4_ot, [FLAGS.batch_size, -1])],
                         axis=1)
-    print reshape
+    #print reshape
     dim = reshape.get_shape()[1].value
     weights = _variable_with_weight_decay('weights', shape=[dim, 384],
                                           stddev=0.04, wd=0.004)
@@ -696,7 +695,7 @@ def inference(mris, keep_prob):
     local5 = tf.nn.dropout(local5, keep_prob)
     _activation_summary(local5)
 
-  print local5
+  #print local5
 
   # local6
   with tf.variable_scope('local6') as scope:
@@ -707,7 +706,7 @@ def inference(mris, keep_prob):
     local6 = tf.nn.dropout(local6, keep_prob)
     _activation_summary(local6)
 
-  print local6
+  #print local6
 
   with tf.variable_scope('local7') as scope:
     weights = _variable_with_weight_decay('weights', shape=[192, NUM_CLASSES],
@@ -717,7 +716,7 @@ def inference(mris, keep_prob):
     local7 = tf.nn.dropout(local7, keep_prob)
     _activation_summary(local7)
     
-  print local7
+  #print local7
 
   return local7
 
@@ -794,7 +793,7 @@ def train(total_loss, global_step):
   return train_op
 
 
-def proceed(is_tumor_cropped=False, with_reset=False):
+def proceed(max_steps, is_tumor_cropped=False, with_reset=False):
   """
   with_reset:
     False - Proceed to restore variables for training
@@ -820,8 +819,6 @@ def proceed(is_tumor_cropped=False, with_reset=False):
                              set_number=proceed.set_number)
     
     batch_logits = inference(records, keep_prob)
-
-    #labels = deb(labels, "labels")
 
     batch_loss = loss(batch_logits, labels)
 
@@ -853,14 +850,16 @@ def proceed(is_tumor_cropped=False, with_reset=False):
                         'sec/batch)')
           print (format_str % (datetime.now(), self._step, loss_value,
                                examples_per_sec, sec_per_batch))
-
-    #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
+    ckpt_saver_hook = tf.train.CheckpointSaverHook(
+        checkpoint_dir=proceed.train_dir,
+        save_steps=FLAGS.num_train_steps_per_eval,
+        checkpoint_basename='p5c1.ckpt')
     config = tf.ConfigProto(log_device_placement=FLAGS.log_device_placement)
-        #gpu_options=gpu_options)
     with tf.train.MonitoredTrainingSession(
         checkpoint_dir=proceed.train_dir,
-        hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
+        hooks=[tf.train.StopAtStepHook(last_step=max_steps),
                tf.train.NanTensorHook(batch_loss),
+               ckpt_saver_hook,
                _LoggerHook()],
         config=config) as ma_sess: # my in French, seance
 
@@ -883,11 +882,14 @@ def main(argv=None):
   proceed.set_number = sys.argv[1]
   is_tumor_cropped = (sys.argv[2] == '1')
   with_reset = (sys.argv[3] == '1')
-  set_char = sys.argv[4]
+  model_id = sys.argv[4]
+  num_evals = int(sys.argv[5])
+
+  max_steps = num_evals * FLAGS.num_train_steps_per_eval
 
   proceed.train_dir = FLAGS.common_dir
   proceed.train_dir += FLAGS.tumor_dir if is_tumor_cropped else FLAGS.brain_dir
-  proceed.train_dir += FLAGS.train_dir + proceed.set_number + "_" + set_char
+  proceed.train_dir += FLAGS.train_dir + proceed.set_number + "_" + model_id
 
   if with_reset:
     if tf.gfile.Exists(proceed.train_dir):
@@ -897,7 +899,7 @@ def main(argv=None):
     if not tf.gfile.Exists(proceed.train_dir):
       tf.gfile.MakeDirs(proceed.train_dir)
 
-  proceed(is_tumor_cropped=is_tumor_cropped, with_reset=with_reset)
+  proceed(max_steps, is_tumor_cropped=is_tumor_cropped, with_reset=with_reset)
   
 
 if __name__ == '__main__':

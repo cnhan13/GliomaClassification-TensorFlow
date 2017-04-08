@@ -16,15 +16,14 @@ tf.app.flags.DEFINE_string('eval_dir',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
-tf.app.flags.DEFINE_integer('eval_interval_secs', 20,
-                            """How often to run the eval.""")
 tf.app.flags.DEFINE_integer('num_examples', 200,
                             """Number of examples to run.""")
 tf.app.flags.DEFINE_boolean('run_once', True,
                             """Whether to run eval only once.""")
 
 
-def eval_once(saver, summary_writer, top_k_op, summary_op, keep_prob):
+def eval_once(saver, summary_writer, top_k_op, summary_op,
+              keep_prob, logits, labels):
   with tf.Session() as sess:
     ckpt = tf.train.get_checkpoint_state(evaluate.checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
@@ -51,8 +50,13 @@ def eval_once(saver, summary_writer, top_k_op, summary_op, keep_prob):
       total_sample_count = num_iter * p5c1.FLAGS.batch_size
       step = 0
       while step < num_iter and not coord.should_stop():
-        predictions = sess.run([top_k_op], feed_dict={keep_prob: 1.0})
-        true_count += np.sum(predictions)
+        #predictions = sess.run([top_k_op], feed_dict={keep_prob: 1.0})
+        result = sess.run([top_k_op, logits, labels], feed_dict={keep_prob: 1.0})
+        true_count += np.sum(result[0]) # predictions
+        print "RESULT"
+        print result[0]
+        print result[1]
+        print result[2]
         step += 1
 
       # Compute precision @ 1
@@ -68,6 +72,7 @@ def eval_once(saver, summary_writer, top_k_op, summary_op, keep_prob):
 
     coord.request_stop()
     coord.join(threads, stop_grace_period_secs=10)
+  return true_count, total_sample_count
 
 
 def evaluate(is_tumor_cropped=False):
@@ -91,34 +96,41 @@ def evaluate(is_tumor_cropped=False):
     variable_averages = tf.train.ExponentialMovingAverage(
         p5c1.MOVING_AVERAGE_DECAY)
     variables_to_restore = variable_averages.variables_to_restore()
-    saver = tf.train.Saver(variables_to_restore)
-
+    saver = tf.train.Saver(variables_to_restore) 
     # build the summary operation based on the TF collection of summaries
     summary_op = tf.summary.merge_all()
 
     summary_writer = tf.summary.FileWriter(evaluate.eval_dir, g)
-
-    while True:
-      eval_once(saver, summary_writer, top_k_op, summary_op, keep_prob)
-      if FLAGS.run_once:
-        break
-      time.sleep(FLAGS.eval_interval_secs)
+    
+    sum_true_count = 0
+    sum_total_sample_count = 0
+    for i in xrange(5):
+      true_count, total_sample_count = \
+          eval_once(saver, summary_writer, top_k_op, summary_op,
+                    keep_prob, logits, labels)
+      sum_true_count += true_count
+      sum_total_sample_count += total_sample_count
+    
+    average_precision = 1.0 * sum_true_count / sum_total_sample_count
+    print('Average precision = %.5f | True count = %d | Sample count = %d' %
+        (average_precision, sum_true_count, sum_total_sample_count))
+    
 
 def main(argv=None):
   
   evaluate.set_number = sys.argv[1]
   is_tumor_cropped = (sys.argv[2] == '1')
-  set_char = sys.argv[3]
+  model_id = sys.argv[3]
 
   evaluate.eval_dir = p5c1.FLAGS.common_dir
   evaluate.eval_dir += p5c1.FLAGS.tumor_dir if is_tumor_cropped else p5c1.FLAGS.brain_dir
   evaluate.checkpoint_dir = evaluate.eval_dir + p5c1.FLAGS.train_dir \
-                          + evaluate.set_number + "_" + set_char
+                          + evaluate.set_number + "_" + model_id
   evaluate.eval_dir += FLAGS.eval_dir + evaluate.set_number \
-                      + "_" + set_char
+                      + "_" + model_id
 
-  if tf.gfile.Exists(evaluate.eval_dir):
-    tf.gfile.DeleteRecursively(evaluate.eval_dir)
+  #if tf.gfile.Exists(evaluate.eval_dir):
+  #  tf.gfile.DeleteRecursively(evaluate.eval_dir)
   tf.gfile.MakeDirs(evaluate.eval_dir)
 
   evaluate(is_tumor_cropped=is_tumor_cropped)
