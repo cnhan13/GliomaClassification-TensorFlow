@@ -3,8 +3,8 @@ set -e
 NUM_SET=9
 IS_TUMOR_CROPPED=1
 MODEL_ID="a"
-MAX_NUM_EVALS=6
-TRAIN_STEPS=500
+MAX_NUM_EVALS=15
+TRAIN_STEPS=2000
 IS_RESET=0
 DROPBOX_DIR="/home/cnhan21/Dropbox/dl-fyp-result/"
 TRAIN_RESULTS="/home/cnhan21/dl/BRATS2015/tumor_cropped/train*"
