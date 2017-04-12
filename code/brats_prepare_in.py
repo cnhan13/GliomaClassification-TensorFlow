@@ -4,17 +4,11 @@ import SimpleITK as sitk
 
 import os
 
-## Simple read mha to nparray, write nparray to file
+## Simply read mha to nparray, write nparray to file
 ## read array from file, reshape to get nparray
-
-### nac
-#TRAIN_PATH = "/home/nhan/Desktop/x2goshared/BRATS2015/BRATS2015_Training/"
 
 ### audi
 TRAIN_PATH = "/home/cnhan21/dl/BRATS2015/BRATS2015_Training/"
-
-### farmer
-#TRAIN_PATH = "/home/ubuntu/dl/BRATS2015/BRATS2015_Training"
 
 NUM_FILES_PER_ENTRY = 5
 # Top down look. Bottom: back. Top: front
