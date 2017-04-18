@@ -12,6 +12,7 @@ LOG_SZ_SCD=$(stat -c%s $CSD_LOG)
 if [ "$LOG_SZ_SCD" -gt "$MX_LOG_SZ_SCD" ]; then
   rm $CSD_LOG
 fi
+# 1 BUG: if in 1 run CSD_LOG is removed, then the whole run is not logged
 
 # Control Intro
 echo
@@ -37,12 +38,16 @@ if [ -e ${0}.pid_old ]; then
   elif [ -e ${0}.kill ]; then
     echo "${SCD_NAME} is on kill. Exiting."
   else
+    if [ -e ${0}.pid ]; then
+      mv -v ${0}.pid ${0}.pid_old
+    fi
+
     for CTL_SCRIPT in ${CTL}/*.sh; do
       CTL_NAME=${CTL_SCRIPT##*/}
       echo
       echo "$(date) Start iteration: ${CTL_NAME}"
 
-      if (ps -u $(whoami) -opid= | grep -P "^\s*$(cat ${CTL_SCRIPT}.pid)$" &> /dev/null); then
+      if [ -e ${CTL_SCRIPT}.pid ] && (ps -u $(whoami) -opid= | grep -P "^\s*$(cat ${CTL_SCRIPT}.pid)$" &> /dev/null); then
         echo "-----${CTL_NAME} is running on-----"
         ps -fu $(whoami) | grep -P "$(cat ${CTL_SCRIPT}.pid)"
 
@@ -75,10 +80,6 @@ if [ -e ${0}.pid_old ]; then
       
       echo "$(date) End iteration: ${CTL_SCRIPT}"
     done
-
-    if [ -e ${0}.pid ]; then
-      mv -v ${0}.pid ${0}.pid_old
-    fi
   fi
 else
   mv -v ${0}.pid ${0}.pid_old
