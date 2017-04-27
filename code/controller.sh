@@ -4,8 +4,8 @@
 CTL="/home/cnhan21/Dropbox/cj/ctl"
 SCD_NAME=${0##*/}
 CSD_LOG="/home/cnhan21/Dropbox/cj/controller.log"
-MX_LOG_SZ_CTL=3000 # CONTROLLER
-MX_LOG_SZ_SCD=3000 # SCHEDULER
+MX_LOG_SZ_CTL=7000 # CONTROLLER
+MX_LOG_SZ_SCD=7000 # SCHEDULER
 
 # Limit log size
 LOG_SZ_SCD=$(stat -c%s $CSD_LOG)
@@ -41,10 +41,17 @@ if [ -e ${0}.pid_old ]; then
     if [ -e ${0}.pid ]; then
       mv -v ${0}.pid ${0}.pid_old
     fi
-
+    echo "ctl: ${CTL}"
+    CNT=-1
     for CTL_SCRIPT in ${CTL}/*.sh; do
-      CTL_NAME=${CTL_SCRIPT##*/}
-      echo
+      let CNT=CNT+1
+      echo "cnt: ${CNT}"
+      echo "ctl_script: ${CTL_SCRIPT}"
+      CTL_NAME=$(echo ${CTL_SCRIPT} | cut -d'/' -f7-8)
+      echo "ctl_name: ${CTL_NAME}"
+      if [ ! -e $CTL_SCRIPT ]; then
+        continue
+      fi
       echo "$(date) Start iteration: ${CTL_NAME}"
 
       if [ -e ${CTL_SCRIPT}.pid ] && (ps -u $(whoami) -opid= | grep -P "^\s*$(cat ${CTL_SCRIPT}.pid)$" &> /dev/null); then
@@ -70,7 +77,10 @@ if [ -e ${0}.pid_old ]; then
         echo "${CTL_NAME} is on kill. Skip to the next script."
         continue
       else
-        LOG_SZ_CTL=$(stat -c%s ${CTL_SCRIPT}.log)
+        LOG_SZ_CTL=0
+        if [ -e ${CTL_SCRIPT}.log ]; then
+          LOG_SZ_CTL=$(stat -c%s ${CTL_SCRIPT}.log)
+        fi
         if [ "$LOG_SZ_CTL" -gt "$MX_LOG_SZ_CTL" ]; then
           bash ${CTL_SCRIPT} > ${CTL_SCRIPT}.log 2>&1 & echo $! > ${CTL_SCRIPT}.pid
         else
@@ -78,7 +88,7 @@ if [ -e ${0}.pid_old ]; then
         fi
       fi
       
-      echo "$(date) End iteration: ${CTL_SCRIPT}"
+      echo "$(date) End iteration: ${CTL_NAME}"
     done
   fi
 else
