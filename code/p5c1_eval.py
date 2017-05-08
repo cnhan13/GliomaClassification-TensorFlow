@@ -62,38 +62,42 @@ def eval_once(saver, summary_writer, top_k_op,
         result = sess.run([top_k_op, labels], feed_dict={keep_prob: 1.0})
         cnt.true += np.sum(result[0]) # predictions
         high_count = np.sum(result[1])
-        print "result[0]"
-        print result[0]
-        print "result[1]"
-        print result[1]
-        print("batch_size %d" % (p5c1.FLAGS.batch_size))
-        print("step: %d @ cnt.true = %d | high_count = %d" %
-            (step, cnt.true, high_count))
         cnt.high += high_count
         cnt.low += p5c1.FLAGS.batch_size - high_count
-        print("cnt.high = %d | cnt.low = %d " %
-            (cnt.high, cnt.low))
         cnt.true_high += np.sum(result[0] * result[1])
         cnt.true_low += np.sum(result[0] * (1 - result[1]))
-        print("cnt.true_high = %d | cnt.true_low = %d" %
-            (cnt.true_high, cnt.true_low))
         step += 1
 
-      # Compute precision @ 1
-      precision = 1.0 * cnt.true / cnt.total_sample
-      print('%s: precision @ 1 = %.5f | %.5f | %.5f' %
-          (datetime.now(), precision, cnt.true, cnt.total_sample))
+      # Compute @ 1
+      accuracy = 1.0 * cnt.true / cnt.total_sample
+      recall = 1.0 * cnt.true_high / cnt.high
+      specificity = 1.0 * cnt.true_low / cnt.low
+      precision = 1.0 * cnt.true_high / (cnt.true_high + cnt.low - cnt.true_low)
+      f1_score = 2.0 * precision * recall / (precision + recall)
+      print('%s' % (datetime.now()))
+      print('\tAccuracy @ 1 = %.5f | True count = %d | Sample count = %d' %
+          (accuracy, cnt.true, cnt.total_sample))
+      print('\tRecall = %.5f | True high count = %d | High count = %d' %
+          (recall, cnt.true_high, cnt.high))
+      print('\tSpecificity = %.5f | True low count = %d | Low count = %d' %
+          (specificity, cnt.true_low, cnt.low))
+      print('\tPrecision = %.5f' % precision)
+      print('\tF1 score = %.5f' % f1_score)
 
       summary = tf.Summary()
       summary.ParseFromString(sess.run(summary_op, feed_dict={keep_prob: 1.0}))
-      summary.value.add(tag='Precision @ 1', simple_value=precision)
+      summary.value.add(tag='Accuracy', simple_value=accuracy)
+      summary.value.add(tag='Recall', simple_value=recall)
+      summary.value.add(tag='Specificity', simple_value=specificity)
+      summary.value.add(tag='Precision', simple_value=precision)
+      summary.value.add(tag='f1_score', simple_value=f1_score)
       summary_writer.add_summary(summary, global_step)
     except Exception as e:
       coord.request_stop(e)
 
     coord.request_stop()
     coord.join(threads, stop_grace_period_secs=10)
-  return cnt          
+  return
 
 
 def evaluate(is_tumor_cropped=False):
@@ -129,33 +133,7 @@ def evaluate(is_tumor_cropped=False):
 
     summary_writer = tf.summary.FileWriter(evaluate.eval_dir, g)
     
-    # sm: sum, cnt: count
-    sm.true_count = 0
-    sm.total_sample_count = 0
-    sm.true_high_count = 0
-    sm.high_count = 0
-    sm.true_low_count = 0
-    sm.low_count = 0
-    for i in xrange(5):
-      cnt = eval_once(saver, summary_writer, top_k_op,
-                    summary_op, keep_prob, labels)
-      sm.true_count += cnt.true
-      sm.total_sample_count += cnt.total_sample
-      sm.true_high_count += cnt.true_high
-      sm.high_count += cnt.high
-      sm.true_low_count += cnt.true_low
-      sm.low_count += cnt.low
-    
-    avg.precision = 1.0 * sm.true_count / sm.total_sample_count
-    avg.high_precision = 1.0 * sm.true_high_count / sm.high_count
-    avg.low_precision = 1.0 * sm.true_low_count / sm.low_count
-    
-    print('Average precision = %.5f | True count = %d | Sample count = %d' %
-        (avg.precision, sm.true_count, sm.total_sample_count))
-    print('\tAverage high precision = %.5f | True high count = %d | High count = %d' %
-        (avg.high_precision, sm.true_high_count, sm.high_count))
-    print('\tAverage low precision = %.5f | True low count = %d | Low count = %d' %
-        (avg.low_precision, sm.true_low_count, sm.low_count))
+    eval_once(saver, summary_writer, top_k_op, summary_op, keep_prob, labels)
     
 
 def main(argv=None):
