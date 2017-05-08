@@ -12,7 +12,12 @@ tf.app.flags.DEFINE_string('data_dir',
                            FLAGS.list_dir + 'BRATS2015_Training/',
                            """Path to the tumor cropped BRATS *.in files""")
 
-def gen_input_list(idx, train_high, train_low, test_high, test_low):
+def gen_input_list(idx, test_high_cnt, test_low_cnt,\
+    test_high_overlap, test_low_overlap):
+
+  #[LIST-CREATE-WITH-PROB VERSION]
+  #def gen_input_list(idx, train_high, train_low, test_high, test_low)
+
   train_list_name = FLAGS.list_dir + 'train_list' + str(idx)
   test_list_name = FLAGS.list_dir + 'test_list' + str(idx)
 
@@ -33,6 +38,8 @@ def gen_input_list(idx, train_high, train_low, test_high, test_low):
 
     # create new list of train files
     
+    """
+    [START LIST-CREATE-WITH-PROB]
     # Probability of taking a record of high grade
     # Train data info:        220 H, 54 L
     # Train quantity target:  73 H, 41 L
@@ -75,16 +82,52 @@ def gen_input_list(idx, train_high, train_low, test_high, test_low):
         break
       #print "train_high: " + str(count_high_train) + " train_low: " + str(len(train_list) - count_high_train)
       #print "test_high: " + str(count_high_test) + " test_low: " + str(len(test_list) - count_high_test)
+    [END LIST-CREATE-WITH-PROB]
+    """
+
+    # [START LIST-CREATE-WITH-PORTION]
+    high_fnames = []
+    low_fnames = []
+    for (_, _, fnames) in os.walk(FLAGS.data_dir):
+      for fname in fnames:
+        if (fname[0] == 'H'):
+          high_fnames.append(fname)
+        else:
+          low_fnames.append(fname)
+
+    test_list = []
+    train_list = []
+    count_high_train = 0
+    count_high_test = 0
+
+    tmp_high = (test_high_cnt - test_high_overlap) * idx
+    if idx == 5:
+      tmp_high -= 1 # overlap 6 between next last and last sets
+
+    for i in range(len(high_fnames)):
+      if i >= tmp_high and i < tmp_high + test_high_cnt:
+        test_list.append(high_fnames[i])
+        count_high_test += 1
+      else:
+        train_list.append(high_fnames[i])
+        count_high_train += 1
     
+    tmp_low = (test_low_cnt - test_low_overlap) * idx
+    for i in range(len(low_fnames)):
+      if i >= tmp_low and i < tmp_low + test_low_cnt:
+        test_list.append(low_fnames[i])
+      else:
+        train_list.append(low_fnames[i])
+    
+    # [END LIST-CREATE-WITH-PORTION]
+
     with open(train_list_name, 'wb') as f:
       pickle.dump(train_list, f)
 
-    print "Total train files: {0} High-Prob: {1}-{2:.2f} Low-Prob: {3}-{4:.2f}"\
+    print "Total train files: {0} High: {1} Low: {2}"\
           .format(len(train_list),
                   count_high_train,
-                  prob_take_high,
-                  len(train_list) - count_high_train,
-                  prob_take_low)
+                  len(train_list) - count_high_train)
     print "File: {}".format(train_list_name)
     
     with open(test_list_name, 'wb') as f:
@@ -96,16 +139,38 @@ def gen_input_list(idx, train_high, train_low, test_high, test_low):
                   len(test_list) - count_high_test)
     print "File: {}".format(test_list_name)
     
-  return train_list, test_list
+  return high_fnames, low_fnames
 
 def main(argv=None):
-  train_high = [70, 67, 71, 76, 73]
-  train_low = [43, 39, 42, 39, 43]
-  test_high = [150, 153, 149, 144, 147]
-  test_low = [11, 15, 12, 15, 11]
+  # TODO: For version with probability
+  #train_high = [70, 67, 71, 76, 73]
+  #train_low = [43, 39, 42, 39, 43]
+  #test_high = [150, 153, 149, 144, 147]
+  #test_low = [11, 15, 12, 15, 11]
 
-  for i in xrange(1,6):
-    _, _ = gen_input_list(i, train_high, train_low, test_high, test_low)
+  # TODO:
+  test_high_cnt = 41
+  test_high_overlap = 5
+  test_low_cnt = 9
+  test_low_overlap = 0
+
+  for i in xrange(6):
+    """
+    [LIST-WITH-PROB VERSION]
+    high_fnames, low_fnames = gen_input_list(i, train_high, train_low, test_high, test_low)
+    """
+    # [LIST-CREATE-WITH-PORTION FUNCTION CALL]
+    high_fnames, low_fnames = gen_input_list(i, test_high_cnt, test_low_cnt,\
+        test_high_overlap, test_low_overlap)
+    if i == 0:
+      prev_high_fnames = high_fnames
+      prev_low_fnames = low_fnames
+    else:
+      if cmp(prev_high_fnames, high_fnames) != 0:
+        print "i: {0}, contradiction".format(i)
+        prev_high_fnames = high_fnames
+        prev_low_fnames = low_fnames
+
 
 if __name__ == '__main__':
   tf.app.run()
