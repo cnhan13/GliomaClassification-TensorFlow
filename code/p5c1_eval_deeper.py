@@ -47,6 +47,9 @@ def eval_once(saver, summary_writer, top_k_op,
         threads.extend(qr.create_threads(sess, coord=coord, daemon=True,
                                          start=True))
 
+      # handle num_epochs in tf.string_input_producer
+      sess.run(tf.local_variables_initializer())
+
       num_iter = int(math.ceil(FLAGS.num_examples / p5c1.FLAGS.batch_size))
       cnt.true = 0
       cnt.total_sample = num_iter * p5c1.FLAGS.batch_size

@@ -209,8 +209,8 @@ def inputs(is_tumor_cropped, is_train_list, batch_size, set_number):
   _list, label_idx = get_list(set_number, is_tumor_cropped, is_train_list)
 
   filename_queue = tf.train.string_input_producer(_list,
-      num_epochs=string_input_producer_num_epochs_eval,
-      capacity=string_input_producer_capacity_eval)
+      num_epochs=FLAGS.string_input_producer_num_epochs_eval,
+      capacity=FLAGS.string_input_producer_capacity_eval)
 
   read_input = read_brats(filename_queue, label_idx)
 
