@@ -14,8 +14,6 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('eval_dir',
                            'eval',
                            """Directory where to write event logs.""")
-tf.app.flags.DEFINE_string('eval_data', 'test',
-                           """Either 'test' or 'train_eval'.""")
 tf.app.flags.DEFINE_integer('num_examples', 50,
                             """Number of examples to run.""")
 tf.app.flags.DEFINE_boolean('run_once', True,
@@ -112,7 +110,6 @@ def evaluate(is_tumor_cropped=False):
     avg = AvgObj()
 
     # get records and labels for BRATS
-    eval_data = FLAGS.eval_data == 'test'
     records, labels = p5c1.inputs(is_tumor_cropped,
                                   is_train_list=False,
                                   batch_size=p5c1.FLAGS.batch_size,

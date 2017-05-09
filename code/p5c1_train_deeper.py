@@ -30,6 +30,12 @@ tf.app.flags.DEFINE_integer('log_frequency', 10,
 tf.app.flags.DEFINE_integer('operation_timeout_in_ms', 60000,
                             """Time to wait for queue to load data.""")
 
+tf.app.flags.DEFINE_integer('string_input_producer_capacity_eval', 50,
+                            """Queue capacity for the producer""")
+
+tf.app.flags.DEFINE_integer('string_input_producer_num_epochs_eval', 1,
+                            """Produce # times before generating an OutOfRange error""")
+
 ### audi ###
 tf.app.flags.DEFINE_string('common_dir',
                            '/home/cnhan21/dl/BRATS2015/',
@@ -150,47 +156,43 @@ def inputs_distorted(is_tumor_cropped, is_train_list, batch_size, set_number):
 
   casted_mris = tf.cast(read_input.mris, tf.float32)
   
-  ot = tf.image.random_brightness(casted_mris[4, :, :, :, :], max_delta=63)
-  ot = tf.image.random_contrast(ot, lower=0.2, upper=1.8)
-  ot_mean, ot_var = tf.nn.moments(ot, [0, 1, 2])
-  ot = tf.nn.batch_normalization(ot, ot_mean, ot_var, None, None, VARIANCE_EPSILON)
-
-  #t1 = casted_mris[0, :, :, :, :] * ot
   t1 = tf.image.random_brightness(casted_mris[0, :, :, :, :], max_delta=63)
   t1 = tf.image.random_contrast(t1, lower=0.2, upper=1.8)
   t1_mean, t1_var = tf.nn.moments(t1, [0, 1, 2])
   t1 = tf.nn.batch_normalization(t1, t1_mean, t1_var, None, None, VARIANCE_EPSILON)
   
-  #t1c = casted_mris[1, :, :, :, :] * ot
   t1c = tf.image.random_brightness(casted_mris[1, :, :, :, :], max_delta=63)
   t1c = tf.image.random_contrast(t1c, lower=0.2, upper=1.8)
   t1c_mean, t1c_var = tf.nn.moments(t1c, [0, 1, 2])
   t1c = tf.nn.batch_normalization(t1c, t1c_mean, t1c_var, None, None, VARIANCE_EPSILON)
   
-  #t2 = casted_mris[2, :, :, :, :] * ot
   t2 = tf.image.random_brightness(casted_mris[2, :, :, :, :], max_delta=63)
   t2 = tf.image.random_contrast(t2, lower=0.2, upper=1.8)
   t2_mean, t2_var = tf.nn.moments(t2, [0, 1, 2])
   t2 = tf.nn.batch_normalization(t2, t2_mean, t2_var, None, None, VARIANCE_EPSILON)
 
-  #fl = casted_mris[3, :, :, :, :] * ot
   fl = tf.image.random_brightness(casted_mris[3, :, :, :, :], max_delta=63)
   fl = tf.image.random_contrast(fl, lower=0.2, upper=1.8)
   fl_mean, fl_var = tf.nn.moments(fl, [0, 1, 2])
   fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON)
   
+  ot = casted_mris[4, :, :, :, :]
+  #ot_mean, ot_var = tf.nn.moments(ot, [0, 1, 2])
+  #ot = tf.nn.batch_normalization(ot, ot_mean, ot_var, None, None, VARIANCE_EPSILON)
+
   normalized_mris = tf.stack([t1, t1c, t2, fl, ot])
 
   read_input.label.set_shape([1])
 
   # Ensure random shuffling has good mixing properties.
-  min_fraction_of_examples_in_queue = 0.8
   if is_train_list:
+    min_fraction_of_examples_in_queue = 0.8
     min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN *
                              min_fraction_of_examples_in_queue)
     print ('Filling queue with %d BRATS records before starting to train. '
            'This will take a few minutes.' % min_queue_examples)
   else:
+    min_fraction_of_examples_in_queue = 1.0
     min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_EVAL *
                              min_fraction_of_examples_in_queue)
     print ('Filling queue with %d BRATS records before starting to evaluate. '
@@ -206,16 +208,14 @@ def inputs(is_tumor_cropped, is_train_list, batch_size, set_number):
   ## Create a queue of filenames to read
   _list, label_idx = get_list(set_number, is_tumor_cropped, is_train_list)
 
-  filename_queue = tf.train.string_input_producer(_list)
+  filename_queue = tf.train.string_input_producer(_list,
+      num_epochs=string_input_producer_num_epochs_eval,
+      capacity=string_input_producer_capacity_eval)
 
   read_input = read_brats(filename_queue, label_idx)
 
   casted_mris = tf.cast(read_input.mris, tf.float32)
   
-  ot = casted_mris[4, :, :, :, :]
-  ot_mean, ot_var = tf.nn.moments(ot, [0, 1, 2])
-  ot = tf.nn.batch_normalization(ot, ot_mean, ot_var, None, None, VARIANCE_EPSILON)
-
   t1 = casted_mris[0, :, :, :, :]
   t1_mean, t1_var = tf.nn.moments(t1, [0, 1, 2])
   t1 = tf.nn.batch_normalization(t1, t1_mean, t1_var, None, None, VARIANCE_EPSILON)
@@ -232,18 +232,21 @@ def inputs(is_tumor_cropped, is_train_list, batch_size, set_number):
   fl_mean, fl_var = tf.nn.moments(fl, [0, 1, 2])
   fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON)
   
+  ot = casted_mris[4, :, :, :, :]
+
   normalized_mris = tf.stack([t1, t1c, t2, fl, ot])
 
   read_input.label.set_shape([1])
 
   # Ensure random shuffling has good mixing properties.
-  min_fraction_of_examples_in_queue = 0.8
   if is_train_list:
+    min_fraction_of_examples_in_queue = 0.8
     min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN *
                              min_fraction_of_examples_in_queue)
     print ('Filling queue with %d BRATS records before starting to train. '
            'This will take a few minutes.' % min_queue_examples)
   else:
+    min_fraction_of_examples_in_queue = 1.0
     min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_EVAL *
                              min_fraction_of_examples_in_queue)
     print ('Filling queue with %d BRATS records before starting to evaluate. '
@@ -329,766 +332,255 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
   return var
 
 
+"""
+Default:
+conv_kernel_shape=[3, 3, 3, 8, 8]
+conv_kernel_stride=[1, 1, 1, 1, 1]
+pool_kernel_shape=[1, 3, 3, 3, 1]
+pool_kernel_stride=[1, 2, 2, 2, 1]
+"""
+def _conv3conv3pool3(input_layer, conv1_scope, conv2_scope, pool_scope,
+                      conv_kernel_shape, conv_kernel_stride,
+                      pool_kernel_shape, pool_kernel_stride):
+
+  with tf.variable_scope(conv1_scope) as scope:
+    kernel = _variable_with_weight_decay('weights',
+                                         shape=conv_kernel_shape,
+                                         stddev=5e-2,
+                                         wd=0.0)
+    conv = tf.nn.conv3d(input_layer,
+                         kernel,
+                         conv_kernel_stride,
+                         padding='SAME')
+    biases = _variable_on_cpu('biases',
+                              conv_kernel_shape[-1],
+                              tf.constant_initializer(0.1))
+    pre_activation = tf.nn.bias_add(conv, biases)
+    conv1 = tf.nn.relu(pre_activation, name=scope.name)
+    _activation_summary(conv1)
+  
+
+  with tf.variable_scope(conv2_scope) as scope:
+    kernel = _variable_with_weight_decay('weights',
+                                          shape=conv_kernel_shape,
+                                          stddev=5e-2,
+                                          wd=0.0)
+    conv = tf.nn.conv3d(conv1,
+                        kernel,
+                        conv_kernel_stride,
+                        padding='SAME')
+    biases = _variable_on_cpu('biases',
+                              conv_kernel_shape[-1],
+                              tf.constant_initializer(0.1))
+    pre_activation = tf.nn.bias_add(conv, biases)
+    conv2 = tf.nn.relu(pre_activation, name=scope.name)
+    _activation_summary(conv2)
+
+
+  pool = tf.nn.max_pool3d(conv2,
+                          ksize=pool_kernel_shape,
+                          strides=pool_kernel_stride,
+                          padding='SAME',
+                          name=pool_scope)
+  return pool
+
+"""
+Use case:
+  conv_kernel_shape=[3, 3, 3, 1, 4]
+  conv_kernel_stride=[1, 1, 1, 1, 1]
+  pool_kernel_shape=[1, 3, 3, 3, 1]
+  pool_kernel_stride=[1, 2, 2, 2, 1]
+"""
+def _conv3pool3(input_layer, conv_scope, pool_scope,
+                conv_kernel_shape, conv_kernel_stride,
+                pool_kernel_shape, pool_kernel_stride):
+
+  with tf.variable_scope(conv_scope) as scope:
+    kernel = _variable_with_weight_decay('weights',
+                                         shape=conv_kernel_shape,
+                                         stddev=5e-2,
+                                         wd=0.0)
+    conv = tf.nn.conv3d(input_layer,
+                         kernel,
+                         conv_kernel_stride,
+                         padding='SAME')
+    biases = _variable_on_cpu('biases',
+                              conv_kernel_shape[-1],
+                              tf.constant_initializer(0.1))
+    pre_activation = tf.nn.bias_add(conv, biases)
+    conv_ = tf.nn.relu(pre_activation, name=scope.name)
+    _activation_summary(conv_)
+  
+
+  pool = tf.nn.max_pool3d(conv_,
+                          ksize=pool_kernel_shape,
+                          strides=pool_kernel_stride,
+                          padding='SAME',
+                          name=pool_scope)
+  return pool
+
+
 def inference(mris, keep_prob):
   # T1 T1c T2 Flair OT
   # conv1
   # (batch_size, 5, 149, 185, 162)
   # (batch_size, 5, 115, 168, 129)
-  with tf.variable_scope('conv1_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 1, 4],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(mris[:, 0, :, :, :, :],
-                           kernel_t1,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [4], tf.constant_initializer(0.0))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv1_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv1_t1)
-
-  with tf.variable_scope('conv1_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 1, 4],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(mris[:, 1, :, :, :, :],
-                           kernel_t1c,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [4], tf.constant_initializer(0.0))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv1_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv1_t1c)
-
-  with tf.variable_scope('conv1_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 1, 4],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(mris[:, 2, :, :, :, :],
-                           kernel_t2,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [4], tf.constant_initializer(0.0))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv1_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv1_t2)
   
-  with tf.variable_scope('conv1_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 1, 4],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(mris[:, 3, :, :, :, :],
-                           kernel_fl,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [4], tf.constant_initializer(0.0))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv1_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv1_fl)
+  group1_t1 = _conv3pool3(mris[:, 0, :, :, :, :], 'conv1_t1', 'pool1_t1',
+                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
   
-  with tf.variable_scope('conv1_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 1, 4],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(mris[:, 4, :, :, :, :],
-                           kernel_ot,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [4], tf.constant_initializer(0.0))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv1_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv1_ot)
-
-  print conv1_ot
-
-  # pool1
-  pool1_t1 = tf.nn.max_pool3d(conv1_t1,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool1_t1')
+  group1_t1c = _conv3pool3(mris[:, 1, :, :, :, :], 'conv1_t1c', 'pool1_t1c',
+                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
   
-  pool1_t1c = tf.nn.max_pool3d(conv1_t1c,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool1_t1c')
-
-  pool1_t2 = tf.nn.max_pool3d(conv1_t2,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool1_t2')
-
-  pool1_fl = tf.nn.max_pool3d(conv1_fl,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool1_fl')
-
-  pool1_ot = tf.nn.max_pool3d(conv1_ot,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool1_ot')
-  print pool1_ot
-
-  # conv2
-  with tf.variable_scope('conv2_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 4, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(pool1_t1,
-                           kernel_t1,
-                           [1, 2, 2, 2, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv2_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv2_t1)
-
-  with tf.variable_scope('conv2_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 4, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(pool1_t1c,
-                           kernel_t1c,
-                           [1, 2, 2, 2, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv2_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv2_t1c)
-
-  with tf.variable_scope('conv2_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 4, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(pool1_t2,
-                           kernel_t2,
-                           [1, 2, 2, 2, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv2_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv2_t2)
+  group1_t2 = _conv3pool3(mris[:, 2, :, :, :, :], 'conv1_t2', 'pool1_t2',
+                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
   
-  with tf.variable_scope('conv2_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 4, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(pool1_fl,
-                           kernel_fl,
-                           [1, 2, 2, 2, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv2_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv2_fl)
+  group1_fl = _conv3pool3(mris[:, 3, :, :, :, :], 'conv1_fl', 'pool1_fl',
+                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
   
-  with tf.variable_scope('conv2_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 4, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(pool1_ot,
-                           kernel_ot,
-                           [1, 2, 2, 2, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv2_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv2_ot)
+  group1_ot = _conv3pool3(mris[:, 4, :, :, :, :], 'conv1_ot', 'pool1_ot',
+                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
 
-  print conv2_ot
-
-  # pool2
-  pool2_t1 = tf.nn.max_pool3d(conv2_t1,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool2_t1')
   
-  pool2_t1c = tf.nn.max_pool3d(conv2_t1c,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool2_t1c')
-
-  pool2_t2 = tf.nn.max_pool3d(conv2_t2,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool2_t2')
-
-  pool2_fl = tf.nn.max_pool3d(conv2_fl,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool2_fl')
-
-  pool2_ot = tf.nn.max_pool3d(conv2_ot,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool2_ot')
+  group1b_t1 = _conv3pool3(group1_t1, 'conv1b_t1', 'pool1b_t1',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
   
-  print pool2_ot
-
-  ## conv3
-  with tf.variable_scope('conv3_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(pool2_t1,
-                           kernel_t1,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv3_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv3_t1)
-
-  with tf.variable_scope('conv3_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(pool2_t1c,
-                           kernel_t1c,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv3_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv3_t1c)
-
-  with tf.variable_scope('conv3_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(pool2_t2,
-                           kernel_t2,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv3_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv3_t2)
+  group1b_t1c = _conv3pool3(group1_t1c, 'conv1b_t1c', 'pool1b_t1c',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
   
-  with tf.variable_scope('conv3_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(pool2_fl,
-                           kernel_fl,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv3_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv3_fl)
+  group1b_t2 = _conv3pool3(group1_t2, 'conv1b_t2', 'pool1b_t2',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
   
-  with tf.variable_scope('conv3_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(pool2_ot,
-                           kernel_ot,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv3_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv3_ot)
-
-  print conv3_ot
-
-  # conv4
-  with tf.variable_scope('conv4_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(conv3_t1,
-                           kernel_t1,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv4_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv4_t1)
-
-  with tf.variable_scope('conv4_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(conv3_t1c,
-                           kernel_t1c,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv4_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv4_t1c)
-
-  with tf.variable_scope('conv4_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(conv3_t2,
-                           kernel_t2,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv4_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv4_t2)
+  group1b_fl = _conv3pool3(group1_fl, 'conv1b_fl', 'pool1b_fl',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
   
-  with tf.variable_scope('conv4_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(conv3_fl,
-                           kernel_fl,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv4_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv4_fl)
+  group1b_ot = _conv3pool3(group1_ot, 'conv1b_ot', 'pool1b_ot',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+
+
+  group2_3_t1 = _conv3conv3pool3(group1b_t1, 'conv2_t1', 'conv3_t1', 'pool3_t1',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group2_3_t1c = _conv3conv3pool3(group1b_t1c, 'conv2_t1c', 'conv3_t1c', 'pool3_t1c',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group2_3_t2 = _conv3conv3pool3(group1b_t2, 'conv2_t2', 'conv3_t2', 'pool3_t2',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group2_3_fl = _conv3conv3pool3(group1b_fl, 'conv2_fl', 'conv3_fl', 'pool3_fl',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group2_3_ot = _conv3conv3pool3(group1b_ot, 'conv2_ot', 'conv3_ot', 'pool3_ot',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+
+
+  group4_5_t1 = _conv3conv3pool3(group2_3_t1, 'conv4_t1', 'conv5_t1', 'pool5_t1',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group4_5_t1c = _conv3conv3pool3(group2_3_t1c, 'conv4_t1c', 'conv5_t1c', 'pool5_t1c',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group4_5_t2 = _conv3conv3pool3(group2_3_t2, 'conv4_t2', 'conv5_t2', 'pool5_t2',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group4_5_fl = _conv3conv3pool3(group2_3_fl, 'conv4_fl', 'conv5_fl', 'pool5_fl',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group4_5_ot = _conv3conv3pool3(group2_3_ot, 'conv4_ot', 'conv5_ot', 'pool5_ot',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+
+
+  group6_7_t1 = _conv3conv3pool3(group4_5_t1, 'conv6_t1', 'conv7_t1', 'pool7_t1',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group6_7_t1c = _conv3conv3pool3(group4_5_t1c, 'conv6_t1c', 'conv7_t1c', 'pool7_t1c',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group6_7_t2 = _conv3conv3pool3(group4_5_t2, 'conv6_t2', 'conv7_t2', 'pool7_t2',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group6_7_fl = _conv3conv3pool3(group4_5_fl, 'conv6_fl', 'conv7_fl', 'pool7_fl',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group6_7_ot = _conv3conv3pool3(group4_5_ot, 'conv6_ot', 'conv7_ot', 'pool7_ot',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+
+
+  group8_9_t1 = _conv3conv3pool3(group6_7_t1, 'conv8_t1', 'conv9_t1', 'pool9_t1',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group8_9_t1c = _conv3conv3pool3(group6_7_t1c, 'conv8_t1c', 'conv9_t1c', 'pool9_t1c',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group8_9_t2 = _conv3conv3pool3(group6_7_t2, 'conv8_t2', 'conv9_t2', 'pool9_t2',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group8_9_fl = _conv3conv3pool3(group6_7_fl, 'conv8_fl', 'conv9_fl', 'pool9_fl',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group8_9_ot = _conv3conv3pool3(group6_7_ot, 'conv8_ot', 'conv9_ot', 'pool9_ot',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+
+
+  group10_11_t1 = _conv3conv3pool3(group8_9_t1, 'conv10_t1', 'conv11_t1', 'pool11_t1',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group10_11_t1c = _conv3conv3pool3(group8_9_t1c, 'conv10_t1c', 'conv11_t1c', 'pool11_t1c',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group10_11_t2 = _conv3conv3pool3(group8_9_t2, 'conv10_t2', 'conv11_t2', 'pool11_t2',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group10_11_fl = _conv3conv3pool3(group8_9_fl, 'conv10_fl', 'conv11_fl', 'pool11_fl',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+  group10_11_ot = _conv3conv3pool3(group8_9_ot, 'conv10_ot', 'conv11_ot', 'pool11_ot',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
+
+
+  group12_13_t1 = _conv3conv3pool3(group10_11_t1, 'conv12_t1', 'conv13_t1', 'pool13_t1',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group12_13_t1c = _conv3conv3pool3(group10_11_t1c, 'conv12_t1c', 'conv13_t1c', 'pool13_t1c',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group12_13_t2 = _conv3conv3pool3(group10_11_t2, 'conv12_t2', 'conv13_t2', 'pool13_t2',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group12_13_fl = _conv3conv3pool3(group10_11_fl, 'conv12_fl', 'conv13_fl', 'pool13_fl',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group12_13_ot = _conv3conv3pool3(group10_11_ot, 'conv12_ot', 'conv13_ot', 'pool13_ot',
+                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
   
-  with tf.variable_scope('conv4_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(conv3_ot,
-                           kernel_ot,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv4_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv4_ot)
-
-  print conv4_ot
-
-  # pool4
-  pool4_t1 = tf.nn.max_pool3d(conv4_t1,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t1')
   
-  pool4_t1c = tf.nn.max_pool3d(conv4_t1c,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t1c')
-
-  pool4_t2 = tf.nn.max_pool3d(conv4_t2,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t2')
-
-  pool4_fl = tf.nn.max_pool3d(conv4_fl,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_fl')
-
-  pool4_ot = tf.nn.max_pool3d(conv4_ot,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_ot')
-  print pool4_ot
-
-  ## conv5
-  with tf.variable_scope('conv5_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(pool2_t1,
-                           kernel_t1,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv5_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv5_t1)
-
-  with tf.variable_scope('conv5_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(pool2_t1c,
-                           kernel_t1c,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv5_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv5_t1c)
-
-  with tf.variable_scope('conv5_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(pool2_t2,
-                           kernel_t2,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv5_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv5_t2)
-  
-  with tf.variable_scope('conv5_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(pool2_fl,
-                           kernel_fl,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv5_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv5_fl)
-  
-  with tf.variable_scope('conv5_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(pool2_ot,
-                           kernel_ot,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv5_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv5_ot)
-
-  print conv5_ot
-
-  # conv6
-  with tf.variable_scope('conv6_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(conv3_t1,
-                           kernel_t1,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv6_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv6_t1)
-
-  with tf.variable_scope('conv6_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(conv3_t1c,
-                           kernel_t1c,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv6_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv6_t1c)
-
-  with tf.variable_scope('conv6_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(conv3_t2,
-                           kernel_t2,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv6_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv6_t2)
-  
-  with tf.variable_scope('conv6_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(conv3_fl,
-                           kernel_fl,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv6_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv6_fl)
-  
-  with tf.variable_scope('conv6_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(conv3_ot,
-                           kernel_ot,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv6_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv6_ot)
-
-  print conv6_ot
-
-  # pool6
-  pool6_t1 = tf.nn.max_pool3d(conv6_t1,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t1')
-  
-  pool6_t1c = tf.nn.max_pool3d(conv6_t1c,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t1c')
-
-  pool6_t2 = tf.nn.max_pool3d(conv6_t2,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t2')
-
-  pool6_fl = tf.nn.max_pool3d(conv6_fl,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_fl')
-
-  pool6_ot = tf.nn.max_pool3d(conv6_ot,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_ot')
-  print pool6_ot
-
-  ## conv7
-  with tf.variable_scope('conv7_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(pool2_t1,
-                           kernel_t1,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv7_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv7_t1)
-
-  with tf.variable_scope('conv7_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(pool2_t1c,
-                           kernel_t1c,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv7_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv7_t1c)
-
-  with tf.variable_scope('conv7_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(pool2_t2,
-                           kernel_t2,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv7_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv7_t2)
-  
-  with tf.variable_scope('conv7_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(pool2_fl,
-                           kernel_fl,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv7_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv7_fl)
-  
-  with tf.variable_scope('conv7_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(pool2_ot,
-                           kernel_ot,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv7_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv7_ot)
-
-  print conv7_ot
-
-  # conv8
-  with tf.variable_scope('conv8_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(conv3_t1,
-                           kernel_t1,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv8_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv8_t1)
-
-  with tf.variable_scope('conv8_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(conv3_t1c,
-                           kernel_t1c,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv8_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv8_t1c)
-
-  with tf.variable_scope('conv8_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(conv3_t2,
-                           kernel_t2,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv8_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv8_t2)
-  
-  with tf.variable_scope('conv8_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(conv3_fl,
-                           kernel_fl,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv8_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv8_fl)
-  
-  with tf.variable_scope('conv8_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(conv3_ot,
-                           kernel_ot,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv8_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv8_ot)
-
-  print conv8_ot
-
-  # pool8
-  pool8_t1 = tf.nn.max_pool3d(conv8_t1,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t1')
-  
-  pool8_t1c = tf.nn.max_pool3d(conv8_t1c,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t1c')
-
-  pool8_t2 = tf.nn.max_pool3d(conv8_t2,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t2')
-
-  pool8_fl = tf.nn.max_pool3d(conv8_fl,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_fl')
-
-  pool8_ot = tf.nn.max_pool3d(conv8_ot,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_ot')
-  print pool8_ot
-
   # local5
   with tf.variable_scope('local5') as scope:
     """
     TensorFlow r1.0
     tf.concat(values, axis, name='concat')
     """
-    reshape = tf.concat([tf.reshape(pool8_t1, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool8_t1c, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool8_t2, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool8_fl, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool8_ot, [FLAGS.batch_size, -1])],
+    reshape = tf.concat([tf.reshape(group12_13_t1, [FLAGS.batch_size, -1]),
+                        tf.reshape(group12_13_t1c, [FLAGS.batch_size, -1]),
+                        tf.reshape(group12_13_t2, [FLAGS.batch_size, -1]),
+                        tf.reshape(group12_13_fl, [FLAGS.batch_size, -1]),
+                        tf.reshape(group12_13_ot, [FLAGS.batch_size, -1])],
                         axis=1)
     #print reshape
     dim = reshape.get_shape()[1].value
@@ -1100,7 +592,6 @@ def inference(mris, keep_prob):
     local5 = tf.nn.dropout(local5, keep_prob)
     _activation_summary(local5)
 
-  #print local5
 
   # local6
   with tf.variable_scope('local6') as scope:
@@ -1111,7 +602,6 @@ def inference(mris, keep_prob):
     local6 = tf.nn.dropout(local6, keep_prob)
     _activation_summary(local6)
 
-  #print local6
 
   with tf.variable_scope('local7') as scope:
     weights = _variable_with_weight_decay('weights', shape=[192, NUM_CLASSES],
@@ -1121,8 +611,6 @@ def inference(mris, keep_prob):
     local7 = tf.nn.dropout(local7, keep_prob)
     _activation_summary(local7)
     
-  #print local7
-
   return local7
 
 def loss(logits, labels):
