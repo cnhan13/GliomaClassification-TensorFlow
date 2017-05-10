@@ -27,13 +27,16 @@ def eval_once(saver, summary_writer, top_k_op,
       pass
     cnt = CntObj
 
+    # handle num_epochs in tf.string_input_producer
+    sess.run(tf.local_variables_initializer())
+
     ckpt = tf.train.get_checkpoint_state(evaluate.checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
       
       saver.restore(sess, ckpt.model_checkpoint_path)
 
       # /my-path/train1/model.ckpt-0,
-      # extract global_step fro mit.
+      # extract global_step from it.
       global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
     else:
       print('No checkpoint file found')
@@ -47,9 +50,6 @@ def eval_once(saver, summary_writer, top_k_op,
         threads.extend(qr.create_threads(sess, coord=coord, daemon=True,
                                          start=True))
 
-      # handle num_epochs in tf.string_input_producer
-      sess.run(tf.local_variables_initializer())
-
       num_iter = int(math.ceil(FLAGS.num_examples / p5c1.FLAGS.batch_size))
       cnt.true = 0
       cnt.total_sample = num_iter * p5c1.FLAGS.batch_size
@@ -61,6 +61,7 @@ def eval_once(saver, summary_writer, top_k_op,
       while step < num_iter and not coord.should_stop():
         #predictions = sess.run([top_k_op], feed_dict={keep_prob: 1.0})
         result = sess.run([top_k_op, labels], feed_dict={keep_prob: 1.0})
+
         cnt.true += np.sum(result[0]) # predictions
         high_count = np.sum(result[1])
         cnt.high += high_count
@@ -119,9 +120,12 @@ def evaluate(is_tumor_cropped=False):
                                   set_number=evaluate.set_number)
     keep_prob = tf.placeholder(tf.float32)
     logits = p5c1.inference(records, keep_prob)
+    logits = p5c1.deb(logits, "eval-logits")
+    labels = p5c1.deb(labels, "eval-labels")
 
     # calculate predictions
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
+    top_k_op = p5c1.deb(top_k_op, "eval-top_k_op")
     
     # restore the moving average version of the learned variables for eval.
     variable_averages = tf.train.ExponentialMovingAverage(

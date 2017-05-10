@@ -15,7 +15,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 5,
                             """Number of images to process in a batch.""")
 
-tf.app.flags.DEFINE_integer('num_train_steps_per_eval', 500,
+tf.app.flags.DEFINE_integer('num_train_steps_per_eval', 200,
                             """Number of steps between 2 evaluations.""")
 
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
@@ -90,7 +90,7 @@ LEARNING_RATE_DECAY_FACTOR = 0.96  # Learning rate decay factor
 INITIAL_LEARNING_RATE = 0.01       # Initial learning rate.
 
 def deb(tensor, msg):
-  return tf.Print(tensor, [tensor], message=msg + ": ", summarize=30)
+  return tf.Print(tensor, [tensor], message=msg + ": ", summarize=100)
 
 def _const0(): return tf.constant([0])
 def _const1(): return tf.constant([1])
@@ -125,7 +125,7 @@ def read_brats(filename_queue, label_idx):
 def generate_record_and_label_batch(mris, label, min_queue_examples,
                                  batch_size, shuffle):
   # Generate batch
-  num_preprocess_threads = 16
+  num_preprocess_threads = 1
 
   if shuffle:
     records, label_batch = tf.train.shuffle_batch(
@@ -156,31 +156,29 @@ def inputs_distorted(is_tumor_cropped, is_train_list, batch_size, set_number):
 
   casted_mris = tf.cast(read_input.mris, tf.float32)
   
+  ot = casted_mris[4, :, :, :, :]
+  
   t1 = tf.image.random_brightness(casted_mris[0, :, :, :, :], max_delta=63)
   t1 = tf.image.random_contrast(t1, lower=0.2, upper=1.8)
   t1_mean, t1_var = tf.nn.moments(t1, [0, 1, 2])
-  t1 = tf.nn.batch_normalization(t1, t1_mean, t1_var, None, None, VARIANCE_EPSILON)
+  t1 = tf.nn.batch_normalization(t1, t1_mean, t1_var, None, None, VARIANCE_EPSILON) * ot
   
   t1c = tf.image.random_brightness(casted_mris[1, :, :, :, :], max_delta=63)
   t1c = tf.image.random_contrast(t1c, lower=0.2, upper=1.8)
   t1c_mean, t1c_var = tf.nn.moments(t1c, [0, 1, 2])
-  t1c = tf.nn.batch_normalization(t1c, t1c_mean, t1c_var, None, None, VARIANCE_EPSILON)
+  t1c = tf.nn.batch_normalization(t1c, t1c_mean, t1c_var, None, None, VARIANCE_EPSILON) * ot
   
   t2 = tf.image.random_brightness(casted_mris[2, :, :, :, :], max_delta=63)
   t2 = tf.image.random_contrast(t2, lower=0.2, upper=1.8)
   t2_mean, t2_var = tf.nn.moments(t2, [0, 1, 2])
-  t2 = tf.nn.batch_normalization(t2, t2_mean, t2_var, None, None, VARIANCE_EPSILON)
+  t2 = tf.nn.batch_normalization(t2, t2_mean, t2_var, None, None, VARIANCE_EPSILON) * ot
 
   fl = tf.image.random_brightness(casted_mris[3, :, :, :, :], max_delta=63)
   fl = tf.image.random_contrast(fl, lower=0.2, upper=1.8)
   fl_mean, fl_var = tf.nn.moments(fl, [0, 1, 2])
-  fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON)
-  
-  ot = casted_mris[4, :, :, :, :]
-  #ot_mean, ot_var = tf.nn.moments(ot, [0, 1, 2])
-  #ot = tf.nn.batch_normalization(ot, ot_mean, ot_var, None, None, VARIANCE_EPSILON)
+  fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON) * ot
 
-  normalized_mris = tf.stack([t1, t1c, t2, fl, ot])
+  normalized_mris = tf.stack([t1, t1c, t2, fl])
 
   read_input.label.set_shape([1])
 
@@ -216,25 +214,25 @@ def inputs(is_tumor_cropped, is_train_list, batch_size, set_number):
 
   casted_mris = tf.cast(read_input.mris, tf.float32)
   
+  ot = casted_mris[4, :, :, :, :]
+  
   t1 = casted_mris[0, :, :, :, :]
   t1_mean, t1_var = tf.nn.moments(t1, [0, 1, 2])
-  t1 = tf.nn.batch_normalization(t1, t1_mean, t1_var, None, None, VARIANCE_EPSILON)
+  t1 = tf.nn.batch_normalization(t1, t1_mean, t1_var, None, None, VARIANCE_EPSILON) * ot
   
   t1c = casted_mris[1, :, :, :, :]
   t1c_mean, t1c_var = tf.nn.moments(t1c, [0, 1, 2])
-  t1c = tf.nn.batch_normalization(t1c, t1c_mean, t1c_var, None, None, VARIANCE_EPSILON)
+  t1c = tf.nn.batch_normalization(t1c, t1c_mean, t1c_var, None, None, VARIANCE_EPSILON) * ot
   
   t2 = casted_mris[2, :, :, :, :]
   t2_mean, t2_var = tf.nn.moments(t2, [0, 1, 2])
-  t2 = tf.nn.batch_normalization(t2, t2_mean, t2_var, None, None, VARIANCE_EPSILON)
+  t2 = tf.nn.batch_normalization(t2, t2_mean, t2_var, None, None, VARIANCE_EPSILON) * ot
 
   fl = casted_mris[3, :, :, :, :]
   fl_mean, fl_var = tf.nn.moments(fl, [0, 1, 2])
-  fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON)
-  
-  ot = casted_mris[4, :, :, :, :]
+  fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON) * ot
 
-  normalized_mris = tf.stack([t1, t1c, t2, fl, ot])
+  normalized_mris = tf.stack([t1, t1c, t2, fl])
 
   read_input.label.set_shape([1])
 
@@ -298,6 +296,7 @@ def get_list(set_number, is_tumor_cropped=False, is_train=True):
 
     print "List name: " + list_name
     print "Number of input files: " + str(len(_list))
+    print "in_dir(%d): %s" % (len(in_dir), in_dir)
 
     return _list, len(in_dir)
   
@@ -427,195 +426,105 @@ def inference(mris, keep_prob):
   # (batch_size, 5, 115, 168, 129)
   
   group1_t1 = _conv3pool3(mris[:, 0, :, :, :, :], 'conv1_t1', 'pool1_t1',
-                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
-                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  
+                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
   group1_t1c = _conv3pool3(mris[:, 1, :, :, :, :], 'conv1_t1c', 'pool1_t1c',
-                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
-                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  
+                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
   group1_t2 = _conv3pool3(mris[:, 2, :, :, :, :], 'conv1_t2', 'pool1_t2',
-                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
-                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  
+                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
   group1_fl = _conv3pool3(mris[:, 3, :, :, :, :], 'conv1_fl', 'pool1_fl',
-                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
-                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group1_t1
   
-  group1_ot = _conv3pool3(mris[:, 4, :, :, :, :], 'conv1_ot', 'pool1_ot',
-                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
-                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-
-  
-  group1b_t1 = _conv3pool3(group1_t1, 'conv1b_t1', 'pool1b_t1',
+  group2_t1 = _conv3pool3(group1_t1, 'conv2_t1', 'pool2_t1',
                         [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
-                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  
-  group1b_t1c = _conv3pool3(group1_t1c, 'conv1b_t1c', 'pool1b_t1c',
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group2_t1c = _conv3pool3(group1_t1c, 'conv2_t1c', 'pool2_t1c',
                         [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
-                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  
-  group1b_t2 = _conv3pool3(group1_t2, 'conv1b_t2', 'pool1b_t2',
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group2_t2 = _conv3pool3(group1_t2, 'conv2_t2', 'pool2_t2',
                         [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
-                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  
-  group1b_fl = _conv3pool3(group1_fl, 'conv1b_fl', 'pool1b_fl',
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group2_fl = _conv3pool3(group1_fl, 'conv2_fl', 'pool2_fl',
                         [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
-                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group2_t1
   
-  group1b_ot = _conv3pool3(group1_ot, 'conv1b_ot', 'pool1b_ot',
-                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
-                        [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-
-
-  group2_3_t1 = _conv3conv3pool3(group1b_t1, 'conv2_t1', 'conv3_t1', 'pool3_t1',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group2_3_t1c = _conv3conv3pool3(group1b_t1c, 'conv2_t1c', 'conv3_t1c', 'pool3_t1c',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group2_3_t2 = _conv3conv3pool3(group1b_t2, 'conv2_t2', 'conv3_t2', 'pool3_t2',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group2_3_fl = _conv3conv3pool3(group1b_fl, 'conv2_fl', 'conv3_fl', 'pool3_fl',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group2_3_ot = _conv3conv3pool3(group1b_ot, 'conv2_ot', 'conv3_ot', 'pool3_ot',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-
-
-  group4_5_t1 = _conv3conv3pool3(group2_3_t1, 'conv4_t1', 'conv5_t1', 'pool5_t1',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group4_5_t1c = _conv3conv3pool3(group2_3_t1c, 'conv4_t1c', 'conv5_t1c', 'pool5_t1c',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group4_5_t2 = _conv3conv3pool3(group2_3_t2, 'conv4_t2', 'conv5_t2', 'pool5_t2',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group4_5_fl = _conv3conv3pool3(group2_3_fl, 'conv4_fl', 'conv5_fl', 'pool5_fl',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group4_5_ot = _conv3conv3pool3(group2_3_ot, 'conv4_ot', 'conv5_ot', 'pool5_ot',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-
-
-  group6_7_t1 = _conv3conv3pool3(group4_5_t1, 'conv6_t1', 'conv7_t1', 'pool7_t1',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group6_7_t1c = _conv3conv3pool3(group4_5_t1c, 'conv6_t1c', 'conv7_t1c', 'pool7_t1c',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group6_7_t2 = _conv3conv3pool3(group4_5_t2, 'conv6_t2', 'conv7_t2', 'pool7_t2',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group6_7_fl = _conv3conv3pool3(group4_5_fl, 'conv6_fl', 'conv7_fl', 'pool7_fl',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group6_7_ot = _conv3conv3pool3(group4_5_ot, 'conv6_ot', 'conv7_ot', 'pool7_ot',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-
-
-  group8_9_t1 = _conv3conv3pool3(group6_7_t1, 'conv8_t1', 'conv9_t1', 'pool9_t1',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group8_9_t1c = _conv3conv3pool3(group6_7_t1c, 'conv8_t1c', 'conv9_t1c', 'pool9_t1c',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group8_9_t2 = _conv3conv3pool3(group6_7_t2, 'conv8_t2', 'conv9_t2', 'pool9_t2',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group8_9_fl = _conv3conv3pool3(group6_7_fl, 'conv8_fl', 'conv9_fl', 'pool9_fl',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group8_9_ot = _conv3conv3pool3(group6_7_ot, 'conv8_ot', 'conv9_ot', 'pool9_ot',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-
-
-  group10_11_t1 = _conv3conv3pool3(group8_9_t1, 'conv10_t1', 'conv11_t1', 'pool11_t1',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group10_11_t1c = _conv3conv3pool3(group8_9_t1c, 'conv10_t1c', 'conv11_t1c', 'pool11_t1c',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group10_11_t2 = _conv3conv3pool3(group8_9_t2, 'conv10_t2', 'conv11_t2', 'pool11_t2',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group10_11_fl = _conv3conv3pool3(group8_9_fl, 'conv10_fl', 'conv11_fl', 'pool11_fl',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-  group10_11_ot = _conv3conv3pool3(group8_9_ot, 'conv10_ot', 'conv11_ot', 'pool11_ot',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 1, 1, 1, 1])
-
-
-  group12_13_t1 = _conv3conv3pool3(group10_11_t1, 'conv12_t1', 'conv13_t1', 'pool13_t1',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group12_13_t1c = _conv3conv3pool3(group10_11_t1c, 'conv12_t1c', 'conv13_t1c', 'pool13_t1c',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group12_13_t2 = _conv3conv3pool3(group10_11_t2, 'conv12_t2', 'conv13_t2', 'pool13_t2',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group12_13_fl = _conv3conv3pool3(group10_11_fl, 'conv12_fl', 'conv13_fl', 'pool13_fl',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
-  group12_13_ot = _conv3conv3pool3(group10_11_ot, 'conv12_ot', 'conv13_ot', 'pool13_ot',
-                              [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
-                              [1, 3, 3, 3, 1], [1, 2, 2, 2, 1])
+  group3_t1 = _conv3pool3(group2_t1, 'conv3_t1', 'pool3_t1',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group3_t1c = _conv3pool3(group2_t1c, 'conv3_t1c', 'pool3_t1c',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group3_t2 = _conv3pool3(group2_t2, 'conv3_t2', 'pool3_t2',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group3_fl = _conv3pool3(group2_fl, 'conv3_fl', 'pool3_fl',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group3_t1
   
-  
+  group4_t1 = _conv3pool3(group3_t1, 'conv4_t1', 'pool4_t1',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group4_t1c = _conv3pool3(group3_t1c, 'conv4_t1c', 'pool4_t1c',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group4_t2 = _conv3pool3(group3_t2, 'conv4_t2', 'pool4_t2',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group4_fl = _conv3pool3(group3_fl, 'conv4_fl', 'pool4_fl',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group4_t1
+
   # local5
   with tf.variable_scope('local5') as scope:
     """
     TensorFlow r1.0
     tf.concat(values, axis, name='concat')
     """
-    reshape = tf.concat([tf.reshape(group12_13_t1, [FLAGS.batch_size, -1]),
-                        tf.reshape(group12_13_t1c, [FLAGS.batch_size, -1]),
-                        tf.reshape(group12_13_t2, [FLAGS.batch_size, -1]),
-                        tf.reshape(group12_13_fl, [FLAGS.batch_size, -1]),
-                        tf.reshape(group12_13_ot, [FLAGS.batch_size, -1])],
+    reshape = tf.concat([tf.reshape(group4_t1, [FLAGS.batch_size, -1]),
+                        tf.reshape(group4_t1c, [FLAGS.batch_size, -1]),
+                        tf.reshape(group4_t2, [FLAGS.batch_size, -1]),
+                        tf.reshape(group4_fl, [FLAGS.batch_size, -1])],
                         axis=1)
-    #print reshape
     dim = reshape.get_shape()[1].value
-    weights = _variable_with_weight_decay('weights', shape=[dim, 384],
+    weights = _variable_with_weight_decay('weights', shape=[dim, 256],
                                           stddev=0.04, wd=0.004)
-    biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
+    biases = _variable_on_cpu('biases', [256], tf.constant_initializer(0.1))
     local5 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
-    #keep_prob = deb(keep_prob, 'keep_prob')
     local5 = tf.nn.dropout(local5, keep_prob)
     _activation_summary(local5)
-
+  print local5
 
   # local6
   with tf.variable_scope('local6') as scope:
-    weights = _variable_with_weight_decay('weights', shape=[384, 192],
+    weights = _variable_with_weight_decay('weights', shape=[256, 128],
                                           stddev=0.04, wd=0.004)
-    biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
+    biases = _variable_on_cpu('biases', [128], tf.constant_initializer(0.1))
     local6 = tf.nn.relu(tf.matmul(local5, weights) + biases, name=scope.name)
     local6 = tf.nn.dropout(local6, keep_prob)
     _activation_summary(local6)
-
+  print local6
 
   with tf.variable_scope('local7') as scope:
-    weights = _variable_with_weight_decay('weights', shape=[192, NUM_CLASSES],
-                                          stddev=1/192.0, wd=0.0)
+    weights = _variable_with_weight_decay('weights', shape=[128, NUM_CLASSES],
+                                          stddev=1/128.0, wd=0.0)
     biases = _variable_on_cpu('biases', [NUM_CLASSES], tf.constant_initializer(0.0))
     local7 = tf.add(tf.matmul(local6, weights), biases, name=scope.name)
     local7 = tf.nn.dropout(local7, keep_prob)
     _activation_summary(local7)
-    
+  print local7
   return local7
 
 def loss(logits, labels):
   # Calculate the average cross entropy loss across the batch
-  #logits = deb(logits, 'logits')
+  logits = deb(logits, 'logits')
+  labels = deb(labels, 'labels')
   labels = tf.cast(labels, tf.int64)
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
       labels=labels, logits=logits, name='cross_entropy_per_example')
