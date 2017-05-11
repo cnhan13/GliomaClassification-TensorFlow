@@ -1,3 +1,4 @@
 *.pyc
 *.in
 *.swp
+*.log

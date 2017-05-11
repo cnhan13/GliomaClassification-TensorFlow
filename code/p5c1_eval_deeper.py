@@ -120,12 +120,12 @@ def evaluate(is_tumor_cropped=False):
                                   set_number=evaluate.set_number)
     keep_prob = tf.placeholder(tf.float32)
     logits = p5c1.inference(records, keep_prob)
-    logits = p5c1.deb(logits, "eval-logits")
-    labels = p5c1.deb(labels, "eval-labels")
+    #logits = p5c1.deb(logits, "eval-logits")
+    #labels = p5c1.deb(labels, "eval-labels")
 
     # calculate predictions
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
-    top_k_op = p5c1.deb(top_k_op, "eval-top_k_op")
+    #top_k_op = p5c1.deb(top_k_op, "eval-top_k_op")
     
     # restore the moving average version of the learned variables for eval.
     variable_averages = tf.train.ExponentialMovingAverage(

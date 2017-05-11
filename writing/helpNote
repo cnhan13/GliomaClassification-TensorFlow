@@ -131,7 +131,14 @@ Install Bazel:
 Configure Tensorflow
 
 Build Pip Package
-  
+
+Install TensorFlow in virtualenv
+
+List files, including redundant files: (not checked yet)
+cuda_7.5.18_linux.run                  cuda-repo-ubuntu1404-7-5-local_7.5-18_amd64.deb        cudnn-8.0-linux-x64-v5.1.tgz    NVIDIA-Linux-x86_64-367.27.run
+cuda_8.0.61_375.26_linux.run           cuda-repo-ubuntu1404-8-0-local-ga2_8.0.61-1_amd64.deb  cudnn-8.0-linux-x64-v6.0.tgz
+cuda-repo-ubuntu1404_7.5-18_amd64.deb  cudnn-7.5-linux-x64-v5.1.tgz                           NVIDIA-Linux-x86_64-367.18.run
+
 
 ================ Scarry warning ===================
 

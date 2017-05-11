@@ -523,8 +523,8 @@ def inference(mris, keep_prob):
 
 def loss(logits, labels):
   # Calculate the average cross entropy loss across the batch
-  logits = deb(logits, 'logits')
-  labels = deb(labels, 'labels')
+  #logits = deb(logits, 'logits')
+  #labels = deb(labels, 'labels')
   labels = tf.cast(labels, tf.int64)
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
       labels=labels, logits=logits, name='cross_entropy_per_example')
