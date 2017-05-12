@@ -14,19 +14,14 @@ FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_integer('batch_size', 5,
                             """Number of images to process in a batch.""")
-
 tf.app.flags.DEFINE_integer('num_train_steps_per_eval', 200,
                             """Number of steps between 2 evaluations.""")
-
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-
 tf.app.flags.DEFINE_boolean('per_process_gpu_memory_fraction', 0.5,
                             """Fraction of GPU memory used for training""")
-
 tf.app.flags.DEFINE_integer('log_frequency', 10,
                            """How often to log results to the console.""")
-
 tf.app.flags.DEFINE_integer('operation_timeout_in_ms', 60000,
                             """Time to wait for queue to load data.""")
 
@@ -34,25 +29,20 @@ tf.app.flags.DEFINE_integer('operation_timeout_in_ms', 60000,
 tf.app.flags.DEFINE_string('common_dir',
                            '/home/cnhan21/dl/BRATS2015/',
                            """Path to 'input list' files.""")
-
 tf.app.flags.DEFINE_string('brain_dir',
                            'brain_cropped/',
                            """Directory to 'brain cropped' data files.""")
-
 tf.app.flags.DEFINE_string('tumor_dir',
                            'tumor_cropped/',
                            """Directory to 'tumor cropped' data files.""")
-
 tf.app.flags.DEFINE_string('in_dir',
                            'BRATS2015_Training/',
                            """Directory to *.in records.""")
-
 tf.app.flags.DEFINE_string('train_dir',
                            'train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 
-""" Read BRATS """
 
 # Global constants describing the BRATS data set
 NUM_FILES_PER_ENTRY = 5
@@ -81,10 +71,10 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = -1 # DON'T KNOW YET
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
 NUM_EPOCHS_PER_DECAY = 300         # Epochs after which learning rate decays.
 LEARNING_RATE_DECAY_FACTOR = 0.96  # Learning rate decay factor
-INITIAL_LEARNING_RATE = 0.01       # Initial learning rate.
+INITIAL_LEARNING_RATE = 0.03       # Initial learning rate.
 
 def deb(tensor, msg):
-  return tf.Print(tensor, [tensor], message=msg + ": ", summarize=30)
+  return tf.Print(tensor, [tensor], message=msg + ": ", summarize=100)
 
 def _const0(): return tf.constant([0])
 def _const1(): return tf.constant([1])
@@ -140,9 +130,9 @@ def generate_record_and_label_batch(mris, label, min_queue_examples,
 
   return records, tf.reshape(label_batch, [batch_size])
 
-def inputs_distorted(is_tumor_cropped, is_train_list, batch_size, set_number):
+def inputs_distorted(is_tumor_cropped, is_train_list, batch_size, set_number_str):
   ## Create a queue of filenames to read
-  _list, label_idx = get_list(set_number, is_tumor_cropped, is_train_list)
+  _list, label_idx = get_list(set_number_str, is_tumor_cropped, is_train_list)
 
   filename_queue = tf.train.string_input_producer(_list)
 
@@ -150,47 +140,41 @@ def inputs_distorted(is_tumor_cropped, is_train_list, batch_size, set_number):
 
   casted_mris = tf.cast(read_input.mris, tf.float32)
   
-  ot = tf.image.random_brightness(casted_mris[4, :, :, :, :], max_delta=63)
-  ot = tf.image.random_contrast(ot, lower=0.2, upper=1.8)
-  ot_mean, ot_var = tf.nn.moments(ot, [0, 1, 2])
-  ot = tf.nn.batch_normalization(ot, ot_mean, ot_var, None, None, VARIANCE_EPSILON)
+  ot = casted_mris[4, :, :, :, :]
 
-  #t1 = casted_mris[0, :, :, :, :] * ot
   t1 = tf.image.random_brightness(casted_mris[0, :, :, :, :], max_delta=63)
   t1 = tf.image.random_contrast(t1, lower=0.2, upper=1.8)
   t1_mean, t1_var = tf.nn.moments(t1, [0, 1, 2])
-  t1 = tf.nn.batch_normalization(t1, t1_mean, t1_var, None, None, VARIANCE_EPSILON)
+  t1 = tf.nn.batch_normalization(t1, t1_mean, t1_var, None, None, VARIANCE_EPSILON) * ot
   
-  #t1c = casted_mris[1, :, :, :, :] * ot
   t1c = tf.image.random_brightness(casted_mris[1, :, :, :, :], max_delta=63)
   t1c = tf.image.random_contrast(t1c, lower=0.2, upper=1.8)
   t1c_mean, t1c_var = tf.nn.moments(t1c, [0, 1, 2])
-  t1c = tf.nn.batch_normalization(t1c, t1c_mean, t1c_var, None, None, VARIANCE_EPSILON)
+  t1c = tf.nn.batch_normalization(t1c, t1c_mean, t1c_var, None, None, VARIANCE_EPSILON) * ot
   
-  #t2 = casted_mris[2, :, :, :, :] * ot
   t2 = tf.image.random_brightness(casted_mris[2, :, :, :, :], max_delta=63)
   t2 = tf.image.random_contrast(t2, lower=0.2, upper=1.8)
   t2_mean, t2_var = tf.nn.moments(t2, [0, 1, 2])
-  t2 = tf.nn.batch_normalization(t2, t2_mean, t2_var, None, None, VARIANCE_EPSILON)
+  t2 = tf.nn.batch_normalization(t2, t2_mean, t2_var, None, None, VARIANCE_EPSILON) * ot
 
-  #fl = casted_mris[3, :, :, :, :] * ot
   fl = tf.image.random_brightness(casted_mris[3, :, :, :, :], max_delta=63)
   fl = tf.image.random_contrast(fl, lower=0.2, upper=1.8)
   fl_mean, fl_var = tf.nn.moments(fl, [0, 1, 2])
-  fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON)
+  fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON) * ot
   
-  normalized_mris = tf.stack([t1, t1c, t2, fl, ot])
+  normalized_mris = tf.stack([t1, t1c, t2, fl])
 
   read_input.label.set_shape([1])
 
   # Ensure random shuffling has good mixing properties.
-  min_fraction_of_examples_in_queue = 0.8
   if is_train_list:
+    min_fraction_of_examples_in_queue = 0.8
     min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN *
                              min_fraction_of_examples_in_queue)
     print ('Filling queue with %d BRATS records before starting to train. '
            'This will take a few minutes.' % min_queue_examples)
   else:
+    min_fraction_of_examples_in_queue = 1.0
     min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_EVAL *
                              min_fraction_of_examples_in_queue)
     print ('Filling queue with %d BRATS records before starting to evaluate. '
@@ -202,48 +186,49 @@ def inputs_distorted(is_tumor_cropped, is_train_list, batch_size, set_number):
                                          shuffle=True)
 
 
-def inputs(is_tumor_cropped, is_train_list, batch_size, set_number):
+def inputs(is_tumor_cropped, is_train_list, batch_size, set_number_str, num_epochs, capacity):
   ## Create a queue of filenames to read
-  _list, label_idx = get_list(set_number, is_tumor_cropped, is_train_list)
+  _list, label_idx = get_list(set_number_str, is_tumor_cropped, is_train_list)
 
-  filename_queue = tf.train.string_input_producer(_list)
+  filename_queue = tf.train.string_input_producer(_list,
+                                                  num_epochs=num_epochs,
+                                                  capacity=capacity)
 
   read_input = read_brats(filename_queue, label_idx)
 
   casted_mris = tf.cast(read_input.mris, tf.float32)
   
   ot = casted_mris[4, :, :, :, :]
-  ot_mean, ot_var = tf.nn.moments(ot, [0, 1, 2])
-  ot = tf.nn.batch_normalization(ot, ot_mean, ot_var, None, None, VARIANCE_EPSILON)
 
   t1 = casted_mris[0, :, :, :, :]
   t1_mean, t1_var = tf.nn.moments(t1, [0, 1, 2])
-  t1 = tf.nn.batch_normalization(t1, t1_mean, t1_var, None, None, VARIANCE_EPSILON)
+  t1 = tf.nn.batch_normalization(t1, t1_mean, t1_var, None, None, VARIANCE_EPSILON) * ot
   
   t1c = casted_mris[1, :, :, :, :]
   t1c_mean, t1c_var = tf.nn.moments(t1c, [0, 1, 2])
-  t1c = tf.nn.batch_normalization(t1c, t1c_mean, t1c_var, None, None, VARIANCE_EPSILON)
+  t1c = tf.nn.batch_normalization(t1c, t1c_mean, t1c_var, None, None, VARIANCE_EPSILON) * ot
   
   t2 = casted_mris[2, :, :, :, :]
   t2_mean, t2_var = tf.nn.moments(t2, [0, 1, 2])
-  t2 = tf.nn.batch_normalization(t2, t2_mean, t2_var, None, None, VARIANCE_EPSILON)
+  t2 = tf.nn.batch_normalization(t2, t2_mean, t2_var, None, None, VARIANCE_EPSILON) * ot
 
   fl = casted_mris[3, :, :, :, :]
   fl_mean, fl_var = tf.nn.moments(fl, [0, 1, 2])
-  fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON)
+  fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON) * ot
   
-  normalized_mris = tf.stack([t1, t1c, t2, fl, ot])
+  normalized_mris = tf.stack([t1, t1c, t2, fl])
 
   read_input.label.set_shape([1])
 
   # Ensure random shuffling has good mixing properties.
-  min_fraction_of_examples_in_queue = 0.8
   if is_train_list:
+    min_fraction_of_examples_in_queue = 0.8
     min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN *
                              min_fraction_of_examples_in_queue)
     print ('Filling queue with %d BRATS records before starting to train. '
            'This will take a few minutes.' % min_queue_examples)
   else:
+    min_fraction_of_examples_in_queue = 1.0
     min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_EVAL *
                              min_fraction_of_examples_in_queue)
     print ('Filling queue with %d BRATS records before starting to evaluate. '
@@ -255,7 +240,7 @@ def inputs(is_tumor_cropped, is_train_list, batch_size, set_number):
                                          shuffle=False)
 
 
-def get_list(set_number, is_tumor_cropped=False, is_train=True):
+def get_list(set_number_str, is_tumor_cropped=False, is_train=True):
   global VOLUME_DEPTH
   global VOLUME_WIDTH
   global VOLUME_HEIGHT
@@ -277,9 +262,9 @@ def get_list(set_number, is_tumor_cropped=False, is_train=True):
   list_name = data_dir
 
   if is_train:
-    list_name += 'train_list' + set_number
+    list_name += 'train_list' + set_number_str
   else:
-    list_name += 'test_list' + set_number
+    list_name += 'test_list' + set_number_str
 
   in_dir = data_dir + FLAGS.in_dir
 
@@ -329,398 +314,104 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
   return var
 
 
+"""
+Use case:
+  conv_kernel_shape=[3, 3, 3, 1, 4]
+  conv_kernel_stride=[1, 1, 1, 1, 1]
+  pool_kernel_shape=[1, 3, 3, 3, 1]
+  pool_kernel_stride=[1, 2, 2, 2, 1]
+"""
+def _conv3pool3(input_layer, conv_scope, pool_scope,
+                conv_kernel_shape, conv_kernel_stride,
+                pool_kernel_shape, pool_kernel_stride):
+
+  with tf.variable_scope(conv_scope) as scope:
+    kernel = _variable_with_weight_decay('weights',
+                                         shape=conv_kernel_shape,
+                                         stddev=5e-2,
+                                         wd=0.0)
+    conv = tf.nn.conv3d(input_layer,
+                         kernel,
+                         conv_kernel_stride,
+                         padding='SAME')
+    biases = _variable_on_cpu('biases',
+                              conv_kernel_shape[-1],
+                              tf.constant_initializer(0.1))
+    pre_activation = tf.nn.bias_add(conv, biases)
+    conv_ = tf.nn.relu(pre_activation, name=scope.name)
+    _activation_summary(conv_)
+  
+
+  pool = tf.nn.max_pool3d(conv_,
+                          ksize=pool_kernel_shape,
+                          strides=pool_kernel_stride,
+                          padding='SAME',
+                          name=pool_scope)
+  return pool
+
+
 def inference(mris, keep_prob):
   # T1 T1c T2 Flair OT
   # conv1
   # (batch_size, 5, 149, 185, 162)
   # (batch_size, 5, 115, 168, 129)
-  with tf.variable_scope('conv1_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 1, 4],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(mris[:, 0, :, :, :, :],
-                           kernel_t1,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [4], tf.constant_initializer(0.0))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv1_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv1_t1)
 
-  with tf.variable_scope('conv1_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 1, 4],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(mris[:, 1, :, :, :, :],
-                           kernel_t1c,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [4], tf.constant_initializer(0.0))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv1_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv1_t1c)
-
-  with tf.variable_scope('conv1_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 1, 4],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(mris[:, 2, :, :, :, :],
-                           kernel_t2,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [4], tf.constant_initializer(0.0))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv1_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv1_t2)
+  group1_t1 = _conv3pool3(mris[:, 0, :, :, :, :], 'conv1_t1', 'pool1_t1',
+                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group1_t1c = _conv3pool3(mris[:, 1, :, :, :, :], 'conv1_t1c', 'pool1_t1c',
+                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group1_t2 = _conv3pool3(mris[:, 2, :, :, :, :], 'conv1_t2', 'pool1_t2',
+                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group1_fl = _conv3pool3(mris[:, 3, :, :, :, :], 'conv1_fl', 'pool1_fl',
+                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group1_t1
   
-  with tf.variable_scope('conv1_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 1, 4],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(mris[:, 3, :, :, :, :],
-                           kernel_fl,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [4], tf.constant_initializer(0.0))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv1_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv1_fl)
+  group2_t1 = _conv3pool3(group1_t1, 'conv2_t1', 'pool2_t1',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group2_t1c = _conv3pool3(group1_t1c, 'conv2_t1c', 'pool2_t1c',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group2_t2 = _conv3pool3(group1_t2, 'conv2_t2', 'pool2_t2',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group2_fl = _conv3pool3(group1_fl, 'conv2_fl', 'pool2_fl',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group2_t1
   
-  with tf.variable_scope('conv1_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 1, 4],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(mris[:, 4, :, :, :, :],
-                           kernel_ot,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [4], tf.constant_initializer(0.0))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv1_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv1_ot)
-
-  #print conv1_ot
-
-  # pool1
-  pool1_t1 = tf.nn.max_pool3d(conv1_t1,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool1_t1')
+  group3_t1 = _conv3pool3(group2_t1, 'conv3_t1', 'pool3_t1',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group3_t1c = _conv3pool3(group2_t1c, 'conv3_t1c', 'pool3_t1c',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group3_t2 = _conv3pool3(group2_t2, 'conv3_t2', 'pool3_t2',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group3_fl = _conv3pool3(group2_fl, 'conv3_fl', 'pool3_fl',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group3_t1
   
-  pool1_t1c = tf.nn.max_pool3d(conv1_t1c,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool1_t1c')
+  group4_t1 = _conv3pool3(group3_t1, 'conv4_t1', 'pool4_t1',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group4_t1c = _conv3pool3(group3_t1c, 'conv4_t1c', 'pool4_t1c',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group4_t2 = _conv3pool3(group3_t2, 'conv4_t2', 'pool4_t2',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group4_fl = _conv3pool3(group3_fl, 'conv4_fl', 'pool4_fl',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group4_t1
 
-  pool1_t2 = tf.nn.max_pool3d(conv1_t2,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool1_t2')
-
-  pool1_fl = tf.nn.max_pool3d(conv1_fl,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool1_fl')
-
-  pool1_ot = tf.nn.max_pool3d(conv1_ot,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool1_ot')
-  #print pool1_ot
-
-  # conv2
-  with tf.variable_scope('conv2_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 4, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(pool1_t1,
-                           kernel_t1,
-                           [1, 2, 2, 2, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv2_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv2_t1)
-
-  with tf.variable_scope('conv2_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 4, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(pool1_t1c,
-                           kernel_t1c,
-                           [1, 2, 2, 2, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv2_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv2_t1c)
-
-  with tf.variable_scope('conv2_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 4, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(pool1_t2,
-                           kernel_t2,
-                           [1, 2, 2, 2, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv2_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv2_t2)
-  
-  with tf.variable_scope('conv2_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 4, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(pool1_fl,
-                           kernel_fl,
-                           [1, 2, 2, 2, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv2_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv2_fl)
-  
-  with tf.variable_scope('conv2_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 4, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(pool1_ot,
-                           kernel_ot,
-                           [1, 2, 2, 2, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv2_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv2_ot)
-
-  #print conv2_ot
-
-  # pool2
-  pool2_t1 = tf.nn.max_pool3d(conv2_t1,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool2_t1')
-  
-  pool2_t1c = tf.nn.max_pool3d(conv2_t1c,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool2_t1c')
-
-  pool2_t2 = tf.nn.max_pool3d(conv2_t2,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool2_t2')
-
-  pool2_fl = tf.nn.max_pool3d(conv2_fl,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool2_fl')
-
-  pool2_ot = tf.nn.max_pool3d(conv2_ot,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool2_ot')
-  
-  #print pool2_ot
-
-  ## conv3
-  with tf.variable_scope('conv3_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(pool2_t1,
-                           kernel_t1,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv3_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv3_t1)
-
-  with tf.variable_scope('conv3_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(pool2_t1c,
-                           kernel_t1c,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv3_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv3_t1c)
-
-  with tf.variable_scope('conv3_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(pool2_t2,
-                           kernel_t2,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv3_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv3_t2)
-  
-  with tf.variable_scope('conv3_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(pool2_fl,
-                           kernel_fl,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv3_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv3_fl)
-  
-  with tf.variable_scope('conv3_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(pool2_ot,
-                           kernel_ot,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv3_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv3_ot)
-
-  #print conv3_ot
-
-  # conv4
-  with tf.variable_scope('conv4_t1') as scope:
-    kernel_t1 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1 = tf.nn.conv3d(conv3_t1,
-                           kernel_t1,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1 = tf.nn.bias_add(conv_t1, biases_t1)
-    conv4_t1 = tf.nn.relu(pre_activation_t1, name=scope.name)
-    _activation_summary(conv4_t1)
-
-  with tf.variable_scope('conv4_t1c') as scope:
-    kernel_t1c = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t1c = tf.nn.conv3d(conv3_t1c,
-                           kernel_t1c,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t1c = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t1c = tf.nn.bias_add(conv_t1c, biases_t1c)
-    conv4_t1c = tf.nn.relu(pre_activation_t1c, name=scope.name)
-    _activation_summary(conv4_t1c)
-
-  with tf.variable_scope('conv4_t2') as scope:
-    kernel_t2 = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_t2 = tf.nn.conv3d(conv3_t2,
-                           kernel_t2,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_t2 = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_t2 = tf.nn.bias_add(conv_t2, biases_t2)
-    conv4_t2 = tf.nn.relu(pre_activation_t2, name=scope.name)
-    _activation_summary(conv4_t2)
-  
-  with tf.variable_scope('conv4_fl') as scope:
-    kernel_fl = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_fl = tf.nn.conv3d(conv3_fl,
-                           kernel_fl,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_fl = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_fl = tf.nn.bias_add(conv_fl, biases_fl)
-    conv4_fl = tf.nn.relu(pre_activation_fl, name=scope.name)
-    _activation_summary(conv4_fl)
-  
-  with tf.variable_scope('conv4_ot') as scope:
-    kernel_ot = _variable_with_weight_decay('weights',
-                                         shape=[3, 3, 3, 8, 8],
-                                         stddev=5e-2,
-                                         wd=0.0)
-    conv_ot = tf.nn.conv3d(conv3_ot,
-                           kernel_ot,
-                           [1, 1, 1, 1, 1],
-                           padding='SAME')
-    biases_ot = _variable_on_cpu('biases', [8], tf.constant_initializer(0.1))
-    pre_activation_ot = tf.nn.bias_add(conv_ot, biases_ot)
-    conv4_ot = tf.nn.relu(pre_activation_ot, name=scope.name)
-    _activation_summary(conv4_ot)
-
-  #print conv4_ot
-
-  # pool4
-  pool4_t1 = tf.nn.max_pool3d(conv4_t1,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t1')
-  
-  pool4_t1c = tf.nn.max_pool3d(conv4_t1c,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t1c')
-
-  pool4_t2 = tf.nn.max_pool3d(conv4_t2,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_t2')
-
-  pool4_fl = tf.nn.max_pool3d(conv4_fl,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_fl')
-
-  pool4_ot = tf.nn.max_pool3d(conv4_ot,
-                              ksize=[1, 3, 3, 3, 1],
-                              strides=[1, 2, 2, 2, 1],
-                              padding='SAME',
-                              name='pool4_ot')
-  #print pool4_ot
 
   # local5
   with tf.variable_scope('local5') as scope:
@@ -728,50 +419,43 @@ def inference(mris, keep_prob):
     TensorFlow r1.0
     tf.concat(values, axis, name='concat')
     """
-    reshape = tf.concat([tf.reshape(pool4_t1, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool4_t1c, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool4_t2, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool4_fl, [FLAGS.batch_size, -1]),
-                        tf.reshape(pool4_ot, [FLAGS.batch_size, -1])],
+    reshape = tf.concat([tf.reshape(group4_t1, [FLAGS.batch_size, -1]),
+                        tf.reshape(group4_t1c, [FLAGS.batch_size, -1]),
+                        tf.reshape(group4_t2, [FLAGS.batch_size, -1]),
+                        tf.reshape(group4_fl, [FLAGS.batch_size, -1])],
                         axis=1)
-    #print reshape
     dim = reshape.get_shape()[1].value
-    weights = _variable_with_weight_decay('weights', shape=[dim, 384],
+    weights = _variable_with_weight_decay('weights', shape=[dim, 256],
                                           stddev=0.04, wd=0.004)
-    biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
+    biases = _variable_on_cpu('biases', [256], tf.constant_initializer(0.1))
     local5 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
-    #keep_prob = deb(keep_prob, 'keep_prob')
     local5 = tf.nn.dropout(local5, keep_prob)
     _activation_summary(local5)
-
-  #print local5
+  print local5
 
   # local6
   with tf.variable_scope('local6') as scope:
-    weights = _variable_with_weight_decay('weights', shape=[384, 192],
+    weights = _variable_with_weight_decay('weights', shape=[256, 128],
                                           stddev=0.04, wd=0.004)
-    biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
+    biases = _variable_on_cpu('biases', [128], tf.constant_initializer(0.1))
     local6 = tf.nn.relu(tf.matmul(local5, weights) + biases, name=scope.name)
     local6 = tf.nn.dropout(local6, keep_prob)
     _activation_summary(local6)
-
-  #print local6
+  print local6
 
   with tf.variable_scope('local7') as scope:
-    weights = _variable_with_weight_decay('weights', shape=[192, NUM_CLASSES],
-                                          stddev=1/192.0, wd=0.0)
+    weights = _variable_with_weight_decay('weights', shape=[128, NUM_CLASSES],
+                                          stddev=1/128.0, wd=0.0)
     biases = _variable_on_cpu('biases', [NUM_CLASSES], tf.constant_initializer(0.0))
     local7 = tf.add(tf.matmul(local6, weights), biases, name=scope.name)
     local7 = tf.nn.dropout(local7, keep_prob)
     _activation_summary(local7)
-    
-  #print local7
+  print local7
 
   return local7
 
 def loss(logits, labels):
   # Calculate the average cross entropy loss across the batch
-  #logits = deb(logits, 'logits')
   labels = tf.cast(labels, tf.int64)
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
       labels=labels, logits=logits, name='cross_entropy_per_example')
@@ -865,7 +549,7 @@ def proceed(max_steps, is_tumor_cropped=False, with_reset=False):
     records, labels = inputs_distorted(is_tumor_cropped=is_tumor_cropped,
                                        is_train_list=True,
                                        batch_size=FLAGS.batch_size,
-                                       set_number=proceed.set_number)
+                                       set_number_str=proceed.set_number_str)
     
     batch_logits = inference(records, keep_prob)
 
@@ -918,23 +602,22 @@ def proceed(max_steps, is_tumor_cropped=False, with_reset=False):
 def main(argv=None):
   """
     Terminal parameters
-    sys.argv[1]: set_number to load as train_list + str(set_number)
+    sys.argv[1]: set_number_str to load as train_list + set_number_str
     sys.argv[2]:
       0: is_tumor_crop = False
       1: is_tumor_crop = True
   """
 
-  proceed.set_number = sys.argv[1]
+  proceed.set_number_str = sys.argv[1]
   is_tumor_cropped = (sys.argv[2] == '1')
   with_reset = (sys.argv[3] == '1')
-  model_id = sys.argv[4]
-  num_evals = int(sys.argv[5])
+  num_evals = int(sys.argv[4])
 
   max_steps = num_evals * FLAGS.num_train_steps_per_eval
 
   proceed.train_dir = FLAGS.common_dir
   proceed.train_dir += FLAGS.tumor_dir if is_tumor_cropped else FLAGS.brain_dir
-  proceed.train_dir += FLAGS.train_dir + proceed.set_number + "_" + model_id
+  proceed.train_dir += FLAGS.train_dir + proceed.set_number_str
 
   if with_reset:
     if tf.gfile.Exists(proceed.train_dir):

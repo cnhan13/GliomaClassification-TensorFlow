@@ -1,6 +1,0 @@
-Changes:
-1.
-Switched from strided_slice to slice
-
-2.
-Switched from histogram_summary to tf.summary.histogram
