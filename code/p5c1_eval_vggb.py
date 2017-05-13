@@ -169,7 +169,7 @@ def eval_once(saver, summary_writer, top_k_op,
             0.0, 0.0, 0.0, 0.0, 0.0]
 
         for i in range(int(evaluate.set_number_str)):
-          stats_file_path = evaluate.eval_stats_dir + 'stats' + evaluate.set_number_str
+          stats_file_path = evaluate.eval_stats_dir + 'stats' + str(i)
           print "\tRetrieving stats from: " + stats_file_path
           with open(stats_file_path, 'rb') as stats_file:
             stats = pickle.load(stats_file)

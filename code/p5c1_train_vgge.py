@@ -69,7 +69,7 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = -1 # DON'T KNOW YET
 
 # Contants describing the training process.
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
-NUM_EPOCHS_PER_DECAY = 20         # Epochs after which learning rate decays.
+NUM_EPOCHS_PER_DECAY = 100         # Epochs after which learning rate decays.
 LEARNING_RATE_DECAY_FACTOR = 0.96  # Learning rate decay factor
 INITIAL_LEARNING_RATE = 0.01       # Initial learning rate.
 
@@ -622,7 +622,7 @@ def _add_loss_summaries(total_loss):
 def train(total_loss, global_step):
   # Variables that affect the learning rate
   num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size # 224 / 5 = 44
-  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY) # 44 * 20 = 880
+  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY) # 44 * 100 = 880
 
   # Decay the learning rate exponentially based on the number of steps
   lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,

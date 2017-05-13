@@ -71,7 +71,7 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = -1 # DON'T KNOW YET
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
 NUM_EPOCHS_PER_DECAY = 300         # Epochs after which learning rate decays.
 LEARNING_RATE_DECAY_FACTOR = 0.96  # Learning rate decay factor
-INITIAL_LEARNING_RATE = 0.03       # Initial learning rate.
+INITIAL_LEARNING_RATE = 0.01       # Initial learning rate.
 
 def deb(tensor, msg):
   return tf.Print(tensor, [tensor], message=msg + ": ", summarize=100)
@@ -321,7 +321,7 @@ Use case:
   pool_kernel_shape=[1, 3, 3, 3, 1]
   pool_kernel_stride=[1, 2, 2, 2, 1]
 """
-def _conv3pool3(input_layer, conv_scope, pool_scope,
+def _conv_pool(input_layer, conv_scope, pool_scope,
                 conv_kernel_shape, conv_kernel_stride,
                 pool_kernel_shape, pool_kernel_stride):
 
@@ -338,11 +338,11 @@ def _conv3pool3(input_layer, conv_scope, pool_scope,
                               conv_kernel_shape[-1],
                               tf.constant_initializer(0.1))
     pre_activation = tf.nn.bias_add(conv, biases)
-    conv_ = tf.nn.relu(pre_activation, name=scope.name)
-    _activation_summary(conv_)
+    conv1 = tf.nn.relu(pre_activation, name=scope.name)
+    _activation_summary(conv1)
   
 
-  pool = tf.nn.max_pool3d(conv_,
+  pool = tf.nn.max_pool3d(conv1,
                           ksize=pool_kernel_shape,
                           strides=pool_kernel_stride,
                           padding='SAME',
@@ -356,58 +356,58 @@ def inference(mris, keep_prob):
   # (batch_size, 5, 149, 185, 162)
   # (batch_size, 5, 115, 168, 129)
 
-  group1_t1 = _conv3pool3(mris[:, 0, :, :, :, :], 'conv1_t1', 'pool1_t1',
+  group1_t1 = _conv_pool(mris[:, 0, :, :, :, :], 'conv1_t1', 'pool1_t1',
                         [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group1_t1c = _conv3pool3(mris[:, 1, :, :, :, :], 'conv1_t1c', 'pool1_t1c',
+  group1_t1c = _conv_pool(mris[:, 1, :, :, :, :], 'conv1_t1c', 'pool1_t1c',
                         [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group1_t2 = _conv3pool3(mris[:, 2, :, :, :, :], 'conv1_t2', 'pool1_t2',
+  group1_t2 = _conv_pool(mris[:, 2, :, :, :, :], 'conv1_t2', 'pool1_t2',
                         [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group1_fl = _conv3pool3(mris[:, 3, :, :, :, :], 'conv1_fl', 'pool1_fl',
+  group1_fl = _conv_pool(mris[:, 3, :, :, :, :], 'conv1_fl', 'pool1_fl',
                         [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
   print group1_t1
   
-  group2_t1 = _conv3pool3(group1_t1, 'conv2_t1', 'pool2_t1',
+  group2_t1 = _conv_pool(group1_t1, 'conv2_t1', 'pool2_t1',
                         [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group2_t1c = _conv3pool3(group1_t1c, 'conv2_t1c', 'pool2_t1c',
+  group2_t1c = _conv_pool(group1_t1c, 'conv2_t1c', 'pool2_t1c',
                         [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group2_t2 = _conv3pool3(group1_t2, 'conv2_t2', 'pool2_t2',
+  group2_t2 = _conv_pool(group1_t2, 'conv2_t2', 'pool2_t2',
                         [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group2_fl = _conv3pool3(group1_fl, 'conv2_fl', 'pool2_fl',
+  group2_fl = _conv_pool(group1_fl, 'conv2_fl', 'pool2_fl',
                         [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
   print group2_t1
   
-  group3_t1 = _conv3pool3(group2_t1, 'conv3_t1', 'pool3_t1',
+  group3_t1 = _conv_pool(group2_t1, 'conv3_t1', 'pool3_t1',
                         [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group3_t1c = _conv3pool3(group2_t1c, 'conv3_t1c', 'pool3_t1c',
+  group3_t1c = _conv_pool(group2_t1c, 'conv3_t1c', 'pool3_t1c',
                         [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group3_t2 = _conv3pool3(group2_t2, 'conv3_t2', 'pool3_t2',
+  group3_t2 = _conv_pool(group2_t2, 'conv3_t2', 'pool3_t2',
                         [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group3_fl = _conv3pool3(group2_fl, 'conv3_fl', 'pool3_fl',
+  group3_fl = _conv_pool(group2_fl, 'conv3_fl', 'pool3_fl',
                         [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
   print group3_t1
   
-  group4_t1 = _conv3pool3(group3_t1, 'conv4_t1', 'pool4_t1',
+  group4_t1 = _conv_pool(group3_t1, 'conv4_t1', 'pool4_t1',
                         [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group4_t1c = _conv3pool3(group3_t1c, 'conv4_t1c', 'pool4_t1c',
+  group4_t1c = _conv_pool(group3_t1c, 'conv4_t1c', 'pool4_t1c',
                         [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group4_t2 = _conv3pool3(group3_t2, 'conv4_t2', 'pool4_t2',
+  group4_t2 = _conv_pool(group3_t2, 'conv4_t2', 'pool4_t2',
                         [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group4_fl = _conv3pool3(group3_fl, 'conv4_fl', 'pool4_fl',
+  group4_fl = _conv_pool(group3_fl, 'conv4_fl', 'pool4_fl',
                         [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
                         [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
   print group4_t1
