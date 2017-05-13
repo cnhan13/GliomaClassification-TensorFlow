@@ -14,51 +14,35 @@ FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_integer('batch_size', 5,
                             """Number of images to process in a batch.""")
-
 tf.app.flags.DEFINE_integer('num_train_steps_per_eval', 200,
                             """Number of steps between 2 evaluations.""")
-
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-
 tf.app.flags.DEFINE_boolean('per_process_gpu_memory_fraction', 0.5,
                             """Fraction of GPU memory used for training""")
-
 tf.app.flags.DEFINE_integer('log_frequency', 10,
                            """How often to log results to the console.""")
-
 tf.app.flags.DEFINE_integer('operation_timeout_in_ms', 60000,
                             """Time to wait for queue to load data.""")
-
-tf.app.flags.DEFINE_integer('string_input_producer_capacity_eval', 50,
-                            """Queue capacity for the producer""")
-
-tf.app.flags.DEFINE_integer('string_input_producer_num_epochs_eval', 1,
-                            """Produce # times before generating an OutOfRange error""")
 
 ### audi ###
 tf.app.flags.DEFINE_string('common_dir',
                            '/home/cnhan21/dl/BRATS2015/',
                            """Path to 'input list' files.""")
-
 tf.app.flags.DEFINE_string('brain_dir',
                            'brain_cropped/',
                            """Directory to 'brain cropped' data files.""")
-
 tf.app.flags.DEFINE_string('tumor_dir',
                            'tumor_cropped/',
                            """Directory to 'tumor cropped' data files.""")
-
 tf.app.flags.DEFINE_string('in_dir',
                            'BRATS2015_Training/',
                            """Directory to *.in records.""")
-
 tf.app.flags.DEFINE_string('train_dir',
                            'train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 
-""" Read BRATS """
 
 # Global constants describing the BRATS data set
 NUM_FILES_PER_ENTRY = 5
@@ -146,9 +130,9 @@ def generate_record_and_label_batch(mris, label, min_queue_examples,
 
   return records, tf.reshape(label_batch, [batch_size])
 
-def inputs_distorted(is_tumor_cropped, is_train_list, batch_size, set_number):
+def inputs_distorted(is_tumor_cropped, is_train_list, batch_size, set_number_str):
   ## Create a queue of filenames to read
-  _list, label_idx = get_list(set_number, is_tumor_cropped, is_train_list)
+  _list, label_idx = get_list(set_number_str, is_tumor_cropped, is_train_list)
 
   filename_queue = tf.train.string_input_producer(_list)
 
@@ -157,7 +141,7 @@ def inputs_distorted(is_tumor_cropped, is_train_list, batch_size, set_number):
   casted_mris = tf.cast(read_input.mris, tf.float32)
   
   ot = casted_mris[4, :, :, :, :]
-  
+
   t1 = tf.image.random_brightness(casted_mris[0, :, :, :, :], max_delta=63)
   t1 = tf.image.random_contrast(t1, lower=0.2, upper=1.8)
   t1_mean, t1_var = tf.nn.moments(t1, [0, 1, 2])
@@ -177,7 +161,7 @@ def inputs_distorted(is_tumor_cropped, is_train_list, batch_size, set_number):
   fl = tf.image.random_contrast(fl, lower=0.2, upper=1.8)
   fl_mean, fl_var = tf.nn.moments(fl, [0, 1, 2])
   fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON) * ot
-
+  
   normalized_mris = tf.stack([t1, t1c, t2, fl])
 
   read_input.label.set_shape([1])
@@ -202,20 +186,20 @@ def inputs_distorted(is_tumor_cropped, is_train_list, batch_size, set_number):
                                          shuffle=True)
 
 
-def inputs(is_tumor_cropped, is_train_list, batch_size, set_number):
+def inputs(is_tumor_cropped, is_train_list, batch_size, set_number_str, num_epochs, capacity):
   ## Create a queue of filenames to read
-  _list, label_idx = get_list(set_number, is_tumor_cropped, is_train_list)
+  _list, label_idx = get_list(set_number_str, is_tumor_cropped, is_train_list)
 
   filename_queue = tf.train.string_input_producer(_list,
-      num_epochs=FLAGS.string_input_producer_num_epochs_eval,
-      capacity=FLAGS.string_input_producer_capacity_eval)
+                                                  num_epochs=num_epochs,
+                                                  capacity=capacity)
 
   read_input = read_brats(filename_queue, label_idx)
 
   casted_mris = tf.cast(read_input.mris, tf.float32)
   
   ot = casted_mris[4, :, :, :, :]
-  
+
   t1 = casted_mris[0, :, :, :, :]
   t1_mean, t1_var = tf.nn.moments(t1, [0, 1, 2])
   t1 = tf.nn.batch_normalization(t1, t1_mean, t1_var, None, None, VARIANCE_EPSILON) * ot
@@ -231,7 +215,7 @@ def inputs(is_tumor_cropped, is_train_list, batch_size, set_number):
   fl = casted_mris[3, :, :, :, :]
   fl_mean, fl_var = tf.nn.moments(fl, [0, 1, 2])
   fl = tf.nn.batch_normalization(fl, fl_mean, fl_var, None, None, VARIANCE_EPSILON) * ot
-
+  
   normalized_mris = tf.stack([t1, t1c, t2, fl])
 
   read_input.label.set_shape([1])
@@ -256,7 +240,7 @@ def inputs(is_tumor_cropped, is_train_list, batch_size, set_number):
                                          shuffle=False)
 
 
-def get_list(set_number, is_tumor_cropped=False, is_train=True):
+def get_list(set_number_str, is_tumor_cropped=False, is_train=True):
   global VOLUME_DEPTH
   global VOLUME_WIDTH
   global VOLUME_HEIGHT
@@ -278,9 +262,9 @@ def get_list(set_number, is_tumor_cropped=False, is_train=True):
   list_name = data_dir
 
   if is_train:
-    list_name += 'train_list' + set_number
+    list_name += 'train_list' + set_number_str
   else:
-    list_name += 'test_list' + set_number
+    list_name += 'test_list' + set_number_str
 
   in_dir = data_dir + FLAGS.in_dir
 
@@ -296,7 +280,6 @@ def get_list(set_number, is_tumor_cropped=False, is_train=True):
 
     print "List name: " + list_name
     print "Number of input files: " + str(len(_list))
-    print "in_dir(%d): %s" % (len(in_dir), in_dir)
 
     return _list, len(in_dir)
   
@@ -331,16 +314,11 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
   return var
 
 
-"""
-Default:
-conv_kernel_shape=[3, 3, 3, 8, 8]
-conv_kernel_stride=[1, 1, 1, 1, 1]
-pool_kernel_shape=[1, 3, 3, 3, 1]
-pool_kernel_stride=[1, 2, 2, 2, 1]
-"""
-def _conv3conv3pool3(input_layer, conv1_scope, conv2_scope, pool_scope,
-                      conv_kernel_shape, conv_kernel_stride,
-                      pool_kernel_shape, pool_kernel_stride):
+def _3conv_pool(input_layer,
+                conv1_scope, conv2_scope, conv3_scope, pool_scope,
+                conv_kernel_shape, conv_kernel_stride,
+                conv_mid_kernel_shape, conv_mid_kernel_stride,
+                pool_kernel_shape, pool_kernel_stride):
 
   with tf.variable_scope(conv1_scope) as scope:
     kernel = _variable_with_weight_decay('weights',
@@ -357,44 +335,53 @@ def _conv3conv3pool3(input_layer, conv1_scope, conv2_scope, pool_scope,
     pre_activation = tf.nn.bias_add(conv, biases)
     conv1 = tf.nn.relu(pre_activation, name=scope.name)
     _activation_summary(conv1)
-  
 
   with tf.variable_scope(conv2_scope) as scope:
     kernel = _variable_with_weight_decay('weights',
-                                          shape=conv_kernel_shape,
-                                          stddev=5e-2,
-                                          wd=0.0)
+                                         shape=conv_mid_kernel_shape,
+                                         stddev=5e-2,
+                                         wd=0.0)
     conv = tf.nn.conv3d(conv1,
-                        kernel,
-                        conv_kernel_stride,
-                        padding='SAME')
+                         kernel,
+                         conv_mid_kernel_stride,
+                         padding='SAME')
     biases = _variable_on_cpu('biases',
-                              conv_kernel_shape[-1],
+                              conv_mid_kernel_shape[-1],
                               tf.constant_initializer(0.1))
     pre_activation = tf.nn.bias_add(conv, biases)
     conv2 = tf.nn.relu(pre_activation, name=scope.name)
     _activation_summary(conv2)
 
+  with tf.variable_scope(conv3_scope) as scope:
+    kernel = _variable_with_weight_decay('weights',
+                                         shape=conv_mid_kernel_shape,
+                                         stddev=5e-2,
+                                         wd=0.0)
+    conv = tf.nn.conv3d(conv2,
+                         kernel,
+                         conv_mid_kernel_stride,
+                         padding='SAME')
+    biases = _variable_on_cpu('biases',
+                              conv_mid_kernel_shape[-1],
+                              tf.constant_initializer(0.1))
+    pre_activation = tf.nn.bias_add(conv, biases)
+    conv3 = tf.nn.relu(pre_activation, name=scope.name)
+    _activation_summary(conv3)
 
-  pool = tf.nn.max_pool3d(conv2,
+  pool = tf.nn.max_pool3d(conv3,
                           ksize=pool_kernel_shape,
                           strides=pool_kernel_stride,
                           padding='SAME',
                           name=pool_scope)
   return pool
 
-"""
-Use case:
-  conv_kernel_shape=[3, 3, 3, 1, 4]
-  conv_kernel_stride=[1, 1, 1, 1, 1]
-  pool_kernel_shape=[1, 3, 3, 3, 1]
-  pool_kernel_stride=[1, 2, 2, 2, 1]
-"""
-def _conv_pool(input_layer, conv_scope, pool_scope,
+
+def _2conv_pool(input_layer, conv1_scope, conv2_scope, pool_scope,
                 conv_kernel_shape, conv_kernel_stride,
+                conv_mid_kernel_shape, conv_mid_kernel_stride,
                 pool_kernel_shape, pool_kernel_stride):
 
-  with tf.variable_scope(conv_scope) as scope:
+  with tf.variable_scope(conv1_scope) as scope:
     kernel = _variable_with_weight_decay('weights',
                                          shape=conv_kernel_shape,
                                          stddev=5e-2,
@@ -407,11 +394,26 @@ def _conv_pool(input_layer, conv_scope, pool_scope,
                               conv_kernel_shape[-1],
                               tf.constant_initializer(0.1))
     pre_activation = tf.nn.bias_add(conv, biases)
-    conv_ = tf.nn.relu(pre_activation, name=scope.name)
-    _activation_summary(conv_)
-  
+    conv1 = tf.nn.relu(pre_activation, name=scope.name)
+    _activation_summary(conv1)
 
-  pool = tf.nn.max_pool3d(conv_,
+  with tf.variable_scope(conv2_scope) as scope:
+    kernel = _variable_with_weight_decay('weights',
+                                         shape=conv_mid_kernel_shape,
+                                         stddev=5e-2,
+                                         wd=0.0)
+    conv = tf.nn.conv3d(conv1,
+                         kernel,
+                         conv_mid_kernel_stride,
+                         padding='SAME')
+    biases = _variable_on_cpu('biases',
+                              conv_mid_kernel_shape[-1],
+                              tf.constant_initializer(0.1))
+    pre_activation = tf.nn.bias_add(conv, biases)
+    conv2 = tf.nn.relu(pre_activation, name=scope.name)
+    _activation_summary(conv2)
+
+  pool = tf.nn.max_pool3d(conv2,
                           ksize=pool_kernel_shape,
                           strides=pool_kernel_stride,
                           padding='SAME',
@@ -424,102 +426,141 @@ def inference(mris, keep_prob):
   # conv1
   # (batch_size, 5, 149, 185, 162)
   # (batch_size, 5, 115, 168, 129)
-  
-  group1_t1 = _conv_pool(mris[:, 0, :, :, :, :], 'conv1_t1', 'pool1_t1',
-                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group1_t1c = _conv_pool(mris[:, 1, :, :, :, :], 'conv1_t1c', 'pool1_t1c',
-                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group1_t2 = _conv_pool(mris[:, 2, :, :, :, :], 'conv1_t2', 'pool1_t2',
-                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group1_fl = _conv_pool(mris[:, 3, :, :, :, :], 'conv1_fl', 'pool1_fl',
-                        [5, 5, 5, 1, 4], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  print group1_t1
-  
-  group2_t1 = _conv_pool(group1_t1, 'conv2_t1', 'pool2_t1',
-                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group2_t1c = _conv_pool(group1_t1c, 'conv2_t1c', 'pool2_t1c',
-                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group2_t2 = _conv_pool(group1_t2, 'conv2_t2', 'pool2_t2',
-                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group2_fl = _conv_pool(group1_fl, 'conv2_fl', 'pool2_fl',
-                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  print group2_t1
-  
-  group3_t1 = _conv_pool(group2_t1, 'conv3_t1', 'pool3_t1',
-                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group3_t1c = _conv_pool(group2_t1c, 'conv3_t1c', 'pool3_t1c',
-                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group3_t2 = _conv_pool(group2_t2, 'conv3_t2', 'pool3_t2',
-                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group3_fl = _conv_pool(group2_fl, 'conv3_fl', 'pool3_fl',
-                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  print group3_t1
-  
-  group4_t1 = _conv_pool(group3_t1, 'conv4_t1', 'pool4_t1',
-                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group4_t1c = _conv_pool(group3_t1c, 'conv4_t1c', 'pool4_t1c',
-                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group4_t2 = _conv_pool(group3_t2, 'conv4_t2', 'pool4_t2',
-                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  group4_fl = _conv_pool(group3_fl, 'conv4_fl', 'pool4_fl',
-                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
-                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
-  print group4_t1
 
-  # local5
-  with tf.variable_scope('local5') as scope:
+  group1_2_t1 = _2conv_pool(mris[:, 0, :, :, :, :], 'conv1_t1', 'conv2_t1', 'pool2_t1',
+                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 4, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group1_2_t1c = _2conv_pool(mris[:, 1, :, :, :, :],
+                        'conv1_t1c', 'conv2_t1c', 'pool2_t1c',
+                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 4, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group1_2_t2 = _2conv_pool(mris[:, 2, :, :, :, :],
+                        'conv1_t2', 'conv2_t2', 'pool2_t2',
+                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 4, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group1_2_fl = _2conv_pool(mris[:, 3, :, :, :, :],
+                        'conv1_fl', 'conv2_fl', 'pool2_fl',
+                        [3, 3, 3, 1, 4], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 4, 4], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group1_2_t1
+  
+  group3_4_t1 = _2conv_pool(group1_2_t1, 'conv3_t1', 'conv4_t1', 'pool4_t1',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group3_4_t1c = _2conv_pool(group1_2_t1c, 'conv3_t1c', 'conv4_t1c', 'pool4_t1c',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group3_4_t2 = _2conv_pool(group1_2_t2, 'conv3_t2', 'conv4_t2', 'pool4_t2',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group3_4_fl = _2conv_pool(group1_2_fl, 'conv3_fl', 'conv4_fl', 'pool4_fl',
+                        [3, 3, 3, 4, 8], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 8, 8], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group3_4_t1
+  
+  group5_6_t1 = _2conv_pool(group3_4_t1, 'conv5_t1', 'conv6_t1', 'pool6_t1',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 16, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group5_6_t1c = _2conv_pool(group3_4_t1c, 'conv5_t1c', 'conv6_t1c', 'pool6_t1c',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 16, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group5_6_t2 = _2conv_pool(group3_4_t2, 'conv5_t2', 'conv6_t2', 'pool6_t2',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 16, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group5_6_fl = _2conv_pool(group3_4_fl, 'conv5_fl', 'conv6_fl', 'pool6_fl',
+                        [3, 3, 3, 8, 16], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 16, 16], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group5_6_t1
+  
+  group7_8_t1 = _2conv_pool(group5_6_t1, 'conv7_t1', 'conv8_t1', 'pool8_t1',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 32, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group7_8_t1c = _2conv_pool(group5_6_t1c, 'conv7_t1c', 'conv8_t1c', 'pool8_t1c',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 32, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group7_8_t2 = _2conv_pool(group5_6_t2, 'conv7_t2', 'conv8_t2', 'pool8_t2',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 32, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group7_8_fl = _2conv_pool(group5_6_fl, 'conv7_fl', 'conv8_fl', 'pool8_fl',
+                        [3, 3, 3, 16, 32], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 32, 32], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group7_8_t1
+
+  group9_10_t1 = _2conv_pool(group7_8_t1, 'conv9_t1', 'conv10_t1', 'pool10_t1',
+                        [3, 3, 3, 32, 64], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 64, 64], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group9_10_t1c = _2conv_pool(group7_8_t1c, 'conv9_t1c', 'conv10_t1c', 'pool10_t1c',
+                        [3, 3, 3, 32, 64], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 64, 64], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group9_10_t2 = _2conv_pool(group7_8_t2, 'conv9_t2', 'conv10_t2', 'pool10_t2',
+                        [3, 3, 3, 32, 64], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 64, 64], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  group9_10_fl = _2conv_pool(group7_8_fl, 'conv9_fl', 'conv10_fl', 'pool10_fl',
+                        [3, 3, 3, 32, 64], [1, 1, 1, 1, 1],
+                        [3, 3, 3, 64, 64], [1, 1, 1, 1, 1],
+                        [1, 2, 2, 2, 1], [1, 2, 2, 2, 1])
+  print group9_10_t1
+
+  # local11
+  with tf.variable_scope('local11') as scope:
     """
     TensorFlow r1.0
     tf.concat(values, axis, name='concat')
     """
-    reshape = tf.concat([tf.reshape(group4_t1, [FLAGS.batch_size, -1]),
-                        tf.reshape(group4_t1c, [FLAGS.batch_size, -1]),
-                        tf.reshape(group4_t2, [FLAGS.batch_size, -1]),
-                        tf.reshape(group4_fl, [FLAGS.batch_size, -1])],
+    reshape = tf.concat([tf.reshape(group11_12_13_t1, [FLAGS.batch_size, -1]),
+                        tf.reshape(group11_12_13_t1c, [FLAGS.batch_size, -1]),
+                        tf.reshape(group11_12_13_t2, [FLAGS.batch_size, -1]),
+                        tf.reshape(group11_12_13_fl, [FLAGS.batch_size, -1])],
                         axis=1)
     dim = reshape.get_shape()[1].value
     weights = _variable_with_weight_decay('weights', shape=[dim, 256],
                                           stddev=0.04, wd=0.004)
     biases = _variable_on_cpu('biases', [256], tf.constant_initializer(0.1))
-    local5 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
-    local5 = tf.nn.dropout(local5, keep_prob)
-    _activation_summary(local5)
-  print local5
+    local11 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
+    local11 = tf.nn.dropout(local11, keep_prob)
+    _activation_summary(local11)
+  print local11
 
-  # local6
-  with tf.variable_scope('local6') as scope:
+  # local12
+  with tf.variable_scope('local12') as scope:
     weights = _variable_with_weight_decay('weights', shape=[256, 128],
                                           stddev=0.04, wd=0.004)
     biases = _variable_on_cpu('biases', [128], tf.constant_initializer(0.1))
-    local6 = tf.nn.relu(tf.matmul(local5, weights) + biases, name=scope.name)
-    local6 = tf.nn.dropout(local6, keep_prob)
-    _activation_summary(local6)
-  print local6
+    local12 = tf.nn.relu(tf.matmul(local11, weights) + biases, name=scope.name)
+    local12 = tf.nn.dropout(local12, keep_prob)
+    _activation_summary(local12)
+  print local12
 
-  with tf.variable_scope('local7') as scope:
+  with tf.variable_scope('local13') as scope:
     weights = _variable_with_weight_decay('weights', shape=[128, NUM_CLASSES],
                                           stddev=1/128.0, wd=0.0)
     biases = _variable_on_cpu('biases', [NUM_CLASSES], tf.constant_initializer(0.0))
-    local7 = tf.add(tf.matmul(local6, weights), biases, name=scope.name)
-    local7 = tf.nn.dropout(local7, keep_prob)
-    _activation_summary(local7)
-  print local7
-  return local7
+    local13 = tf.add(tf.matmul(local12, weights), biases, name=scope.name)
+    local13 = tf.nn.dropout(local13, keep_prob)
+    _activation_summary(local13)
+  print local13
+
+  return local13
+
 
 def loss(logits, labels):
   # Calculate the average cross entropy loss across the batch
@@ -616,7 +657,7 @@ def proceed(max_steps, is_tumor_cropped=False, with_reset=False):
     records, labels = inputs_distorted(is_tumor_cropped=is_tumor_cropped,
                                        is_train_list=True,
                                        batch_size=FLAGS.batch_size,
-                                       set_number=proceed.set_number)
+                                       set_number_str=proceed.set_number_str)
     
     batch_logits = inference(records, keep_prob)
 
@@ -669,23 +710,22 @@ def proceed(max_steps, is_tumor_cropped=False, with_reset=False):
 def main(argv=None):
   """
     Terminal parameters
-    sys.argv[1]: set_number to load as train_list + str(set_number)
+    sys.argv[1]: set_number_str to load as train_list + set_number_str
     sys.argv[2]:
       0: is_tumor_crop = False
       1: is_tumor_crop = True
   """
 
-  proceed.set_number = sys.argv[1]
+  proceed.set_number_str = sys.argv[1]
   is_tumor_cropped = (sys.argv[2] == '1')
   with_reset = (sys.argv[3] == '1')
-  model_id = sys.argv[4]
-  num_evals = int(sys.argv[5])
+  num_evals = int(sys.argv[4])
 
   max_steps = num_evals * FLAGS.num_train_steps_per_eval
 
   proceed.train_dir = FLAGS.common_dir
   proceed.train_dir += FLAGS.tumor_dir if is_tumor_cropped else FLAGS.brain_dir
-  proceed.train_dir += FLAGS.train_dir + proceed.set_number + "_" + model_id
+  proceed.train_dir += FLAGS.train_dir + proceed.set_number_str
 
   if with_reset:
     if tf.gfile.Exists(proceed.train_dir):

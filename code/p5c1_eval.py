@@ -59,11 +59,11 @@ def add_summary(summary_writer, global_step, accuracy,
     recall, specificity, precision, f1_score, name=''):
   summary = tf.Summary()
   #summary.ParseFromString(sess.run(summary_op, feed_dict={keep_prob: 1.0}))
-  summary.value.add(tag=' '.join([name, 'Accuracy']), simple_value=accuracy)
-  summary.value.add(tag=' '.join([name, 'Recall']), simple_value=recall)
-  summary.value.add(tag=' '.join([name, 'Specificity']), simple_value=specificity)
-  summary.value.add(tag=' '.join([name, 'Precision']), simple_value=precision)
-  summary.value.add(tag=' '.join([name, 'F1 Score']), simple_value=f1_score)
+  summary.value.add(tag='/'.join([name, 'Accuracy']), simple_value=accuracy)
+  summary.value.add(tag='/'.join([name, 'Recall']), simple_value=recall)
+  summary.value.add(tag='/'.join([name, 'Specificity']), simple_value=specificity)
+  summary.value.add(tag='/'.join([name, 'Precision']), simple_value=precision)
+  summary.value.add(tag='/'.join([name, 'F1 Score']), simple_value=f1_score)
   summary_writer.add_summary(summary, global_step)
 
 
@@ -193,8 +193,8 @@ def eval_once(saver, summary_writer, top_k_op,
         current_overall_stat[10] = 1.0 * current_overall_stat[4] / \
             (current_overall_stat[4] + current_overall_stat[5] - current_overall_stat[6])
         # Overall f1 score
-        current_overall_stat[11] = 2.0 * current_overall_score[10] * \
-            current_overall_score[8] / (current_overall_score[10] + current_overall_score[8])
+        current_overall_stat[11] = 2.0 * current_overall_stat[10] * \
+            current_overall_stat[8] / (current_overall_stat[10] + current_overall_stat[8])
         
         print_stat(current_overall_stat, name='Overall')
         write_stats(overall_stats_file_path, global_step, current_overall_stat)
