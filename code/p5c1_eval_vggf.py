@@ -8,7 +8,7 @@ import tensorflow as tf
 
 import sys
 
-import p5c1_train_vggd as p5c1
+import p5c1_train_vggf as p5c1
 
 FLAGS = tf.app.flags.FLAGS
 ### audi ###

@@ -315,10 +315,10 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
 
 
 """
-Use case:
-  conv_kernel_shape=[3, 3, 3, 1, 4]
+Example use case:
+  conv_kernel_shape=[5, 5, 5, 1, 4]
   conv_kernel_stride=[1, 1, 1, 1, 1]
-  pool_kernel_shape=[1, 3, 3, 3, 1]
+  pool_kernel_shape=[1, 2, 2, 2, 1]
   pool_kernel_stride=[1, 2, 2, 2, 1]
 """
 def _conv_pool(input_layer, conv_scope, pool_scope,
@@ -484,8 +484,8 @@ def _add_loss_summaries(total_loss):
 
 def train(total_loss, global_step):
   # Variables that affect the learning rate
-  num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size # 115 / 5 = 23 (might be 113/5=22)
-  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY) # 23 * 300 = 6900 (might be 22*300=6600)
+  num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size # 224 / 5 = 44
+  decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY) # 44 * 100 = 4400
 
   # Decay the learning rate exponentially based on the number of steps
   lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,

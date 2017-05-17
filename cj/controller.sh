@@ -1,10 +1,10 @@
 #!/bin/bash
 #set -e
 
-CTL="/home/cnhan21/Dropbox/cj/ctl"
+CTL="/home/wmhuang/Dropbox/cj/ctl"
 SCD_NAME=${0##*/}
-CSD_LOG="/home/cnhan21/Dropbox/cj/controller.log"
-MX_LOG_SZ_CTL=7000 # CONTROLLER
+CSD_LOG="/home/wmhuang/Dropbox/cj/controller.log"
+MX_LOG_SZ_CTL=90000000 # CONTROLLER
 MX_LOG_SZ_SCD=7000 # SCHEDULER
 
 # Limit log size

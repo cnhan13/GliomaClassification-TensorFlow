@@ -5,7 +5,6 @@ pip install scikit-image
 pip install SimpleITK
 
 
-
 ======== New components and their usages ============
 1. Load .mha file [g.stevo - Stackoverflow]]
 import skimage.io as io
